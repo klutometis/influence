@@ -1,0 +1,105 @@
+# -*- org -*-
+* TODO connectionist
+  since $a_j(t + 1)$ depends on $a_j(t)$, we should calculate $t + 1$
+  and then update the graph atomically: we can't let the $t + 1$
+  contaminate $t$.
+* TODO input specification
+  can we just do something like this:
+  
+  #+BEGIN_SRC scheme
+    (a 0.5)
+    (b +high)
+    (b -low)
+    (c evidence)
+    (a b +high)
+    (c b -low)
+    (a c 0.5)
+  #+END_SRC
+
+  or is that an appropriate way to handle evidence? do we need
+  multiple evidence? let's just have a special (pre-existing) node to
+  that effect:
+
+  #+BEGIN_SRC scheme
+    (a 0.5)
+    (b +high)                               ; or (b high)
+    (c -low)
+    (a b +high)
+    (evidence c -low)
+    (a evidence 0.5)
+  #+END_SRC
+
+  so: we'll have nodes (activation) and links (weight, whence,
+  whither); no name for now.
+
+  #+BEGIN_SRC scheme :tangle graph.scm :shebang #!/usr/bin/env chicken-scheme
+    (use defstruct)
+    
+    (define excitatory 0.04)
+    (define inhibitory -0.06)
+    
+    (define default-activation 0.1)
+    (define default-weight excitatory)
+    
+    (defstruct node (activation 0.1))
+    
+    (defstruct link (weight excitatory) whence whither)
+    
+    (define evidence (make-node))
+    
+    (let ((oj-abusive (make-node))
+          (oj-beat-nicole (make-node))
+          (oj-killed-nicole (make-node))
+          (nicole-and-ron-were-killed (make-node))
+          (blood-on-sock (make-node))
+          (blood-in-ojs-car (make-node))
+          (bloody-glove (make-node))
+          (bloody-gate (make-node))
+          (fuhrman-lied (make-node))
+          (edta-on-sock (make-node))
+          (drug-dealers-killed-nicole (make-node))
+          (the-lapd-framed-oj (make-node)))
+      (let ((links
+             (list (make-link whence: oj-abusive
+                              whither: oj-beat-nicole)
+                   (make-link whence: oj-abusive
+                              whither: oj-killed-nicole)
+                   (make-link whence: evidence
+                              whither: oj-beat-nicole)
+                   (make-link whence: evidence
+                              whither: nicole-and-ron-were-killed)
+                   (make-link whence: evidence
+                              whither: blood-on-sock)
+                   (make-link whence: evidence
+                              whither: blood-in-ojs-car)
+                   (make-link whence: evidence
+                              whither: bloody-glove)
+                   (make-link whence: evidence
+                              whither: bloody-gate)
+                   (make-link whence: evidence
+                              whither: fuhrman-lied)
+                   (make-link whence: evidence
+                              whither: edta-on-sock)
+                   (make-link whence: nicole-and-ron-were-killed
+                              whither: drug-dealers-killed-nicole)
+                   (make-link whence: blood-on-sock
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: blood-in-ojs-car
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: bloody-glove
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: bloody-gate
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: fuhrman-lied
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: edta-on-sock
+                              whither: the-lapd-framed-oj)
+                   (make-link whence: oj-killed-nicole
+                              whither: drug-dealers-killed-nicole
+                              weight: inhibitory)
+                   (make-link whence: oj-killed-nicole
+                              whither: the-lapd-framed-oj
+                              weight: inhibitory))))
+        'harro))
+    
+  #+END_SRC

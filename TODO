@@ -469,7 +469,14 @@
     
   #+END_SRC
 
-  figure out a way to set the default shebang!
+  figure out a way to [[http://orgmode.org/manual/System_002dwide-header-arguments.html#System_002dwide-header-arguments][set the default :shebang]]; this doesn't work:
+
+  #+BEGIN_SRC elisp
+    (setq org-babel-default-header-args:scheme
+          '((:shebang . "#!/usr/bin/env chicken-scheme")))
+  #+END_SRC
+
+  [[http://www.mail-archive.com/emacs-orgmode@gnu.org/msg37217.html][see this]].
 
   #+BEGIN_SRC scheme :tangle test-equality.scm :shebang #!/usr/bin/env chicken-scheme
     (use defstruct debug srfi-69 srfi-9)
@@ -503,3 +510,5 @@
             (list x y z))))
     
   #+END_SRC
+
+  how to visualize $t$?

@@ -1,5 +1,6 @@
 # -*- org -*-
 * TODO connectionist
+# <<connectionist>>
   since $a_j(t + 1)$ depends on $a_j(t)$, we should calculate $t + 1$
   and then update the graph atomically: we can't let the $t + 1$
   contaminate $t$.
@@ -33,73 +34,255 @@
   whither); no name for now.
 
   #+BEGIN_SRC scheme :tangle graph.scm :shebang #!/usr/bin/env chicken-scheme
-    (use defstruct)
+    (use srfi-26 defstruct matchable debug)
+    
+    (define default-activation 0.01)
+    (define initial-activation default-activation)
+    (define maximum-activation 0.99)
+    (define minimum-activation -0.99)
     
     (define excitatory 0.04)
     (define inhibitory -0.06)
-    
-    (define default-activation 0.1)
     (define default-weight excitatory)
     
-    (defstruct node (activation 0.1))
+    (defstruct proposition
+      (activation default-activation)
+      (description ""))
     
-    (defstruct link (weight excitatory) whence whither)
+    (defstruct constraint
+      (weight default-weight)
+      whither)
     
-    (define evidence (make-node))
+    (defstruct problem
+      (propositions (make-hash-table eq? hash-by-identity))
+      (constraints (make-hash-table eq? hash-by-identity)))
     
-    (let ((oj-abusive (make-node))
-          (oj-beat-nicole (make-node))
-          (oj-killed-nicole (make-node))
-          (nicole-and-ron-were-killed (make-node))
-          (blood-on-sock (make-node))
-          (blood-in-ojs-car (make-node))
-          (bloody-glove (make-node))
-          (bloody-gate (make-node))
-          (fuhrman-lied (make-node))
-          (edta-on-sock (make-node))
-          (drug-dealers-killed-nicole (make-node))
-          (the-lapd-framed-oj (make-node)))
-      (let ((links
-             (list (make-link whence: oj-abusive
-                              whither: oj-beat-nicole)
-                   (make-link whence: oj-abusive
-                              whither: oj-killed-nicole)
-                   (make-link whence: evidence
-                              whither: oj-beat-nicole)
-                   (make-link whence: evidence
-                              whither: nicole-and-ron-were-killed)
-                   (make-link whence: evidence
-                              whither: blood-on-sock)
-                   (make-link whence: evidence
-                              whither: blood-in-ojs-car)
-                   (make-link whence: evidence
-                              whither: bloody-glove)
-                   (make-link whence: evidence
-                              whither: bloody-gate)
-                   (make-link whence: evidence
-                              whither: fuhrman-lied)
-                   (make-link whence: evidence
-                              whither: edta-on-sock)
-                   (make-link whence: nicole-and-ron-were-killed
-                              whither: drug-dealers-killed-nicole)
-                   (make-link whence: blood-on-sock
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: blood-in-ojs-car
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: bloody-glove
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: bloody-gate
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: fuhrman-lied
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: edta-on-sock
-                              whither: the-lapd-framed-oj)
-                   (make-link whence: oj-killed-nicole
-                              whither: drug-dealers-killed-nicole
-                              weight: inhibitory)
-                   (make-link whence: oj-killed-nicole
-                              whither: the-lapd-framed-oj
-                              weight: inhibitory))))
-        'harro))
+    (define evidence
+      (make-node activation: maximum-activation
+                 description: "Evidence"))
+    
+    (define link!
+      (case-lambda
+       ((problem whence whither)
+        (link! constraints whence whither default-weight))
+       ((problem whence whither weight)
+        ;; create whither if it doesn't exist?
+        (let ((whence (hash-table-ref
+                       (problem-propositions problem)
+                       whence))
+              (whither (hash-table-ref
+                        (problem-propositions problem)
+                        whither)))
+          (let ((constraint (make-constraint weight: weight
+                                             whither: whither)))
+            (hash-table-update!/default
+             constraints
+             whence
+             (cut cons constraint <>)
+             '()))))))
+    
+    ;;; explain, contradict should call link-symmetrically! with
+    ;;; e.g. certain default weights.
+    (define link-symmetrically!
+      (case-lambda
+       ((problem whence whither)
+        (link-symmetrically! problem whence whither default-weight))
+       ((problem whence whither weight)
+        (link! problem whence whither)
+        (link! problem whither whence)))) 
+    
+    ;;; or maybe explain should do the symbol lookup, etc.
+    
+    (let ((problem (make-problem))
+          (propositions
+           `((oj-abusive . ,(make-proposition))
+             (oj-beat-nicole . ,(make-proposition))
+             (oj-killed-nicole . ,(make-proposition))
+             (nicole-and-ron-were-killed . ,(make-proposition))
+             (blood-on-sock . ,(make-proposition))
+             (blood-in-ojs-car . ,(make-proposition))
+             (bloody-glove . ,(make-proposition))
+             (bloody-gate . ,(make-proposition))
+             (fuhrman-lied . ,(make-proposition))
+             (edta-on-sock . ,(make-proposition))
+             (drug-dealers-killed-nicole . ,(make-proposition))
+             (the-lapd-framed-oj . ,(make-proposition)))))
+      (for-each (match-lambda
+                    ((name . proposition)
+                     (hash-table-set! (problem-propositions problem) name node)))
+                propositions)
+      (link-symmetrically! problem 'oj-abusive 'oj-beat-nicole)
+      (link-symmetrically! problem 'oj-abusive 'oj-killed-nicole)
+      (link-symmetrically! problem 'evidence 'oj-beat-nicole)
+      (link-symmetrically! problem 'evidence 'nicole-and-ron-were-killed)
+      (link-symmetrically! problem 'evidence 'blood-on-sock)
+      (link-symmetrically! problem 'evidence 'blood-in-ojs-car)
+      (link-symmetrically! problem 'evidence 'bloody-glove)
+      (link-symmetrically! problem 'evidence 'bloody-gate)
+      (link-symmetrically! problem 'evidence 'fuhrman-lied)
+      (link-symmetrically! problem 'evidence 'edta-on-sock)
+      (link-symmetrically! problem 'nicole-and-ron-were-killed 'drug-dealers-killed-nicole)
+      (link-symmetrically! problem 'blood-on-sock 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'blood-in-ojs-car 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'bloody-glove 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'bloody-gate 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'fuhrman-lied 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'edta-on-sock 'the-lapd-framed-oj)
+      (link-symmetrically! problem 'oj-killed-nicole 'drug-dealers-killed-nicole inhibitory)
+      (link-symmetrically! problem 'oj-killed-nicole 'the-lapd-framed-oj inhibitory))
+    
+    (let ((nodes
+           `((oj-abusive . ,(make-node))
+             (oj-beat-nicole . ,(make-node))
+             (oj-killed-nicole . ,(make-node))
+             (nicole-and-ron-were-killed . ,(make-node))
+             (blood-on-sock . ,(make-node))
+             (blood-in-ojs-car . ,(make-node))
+             (bloody-glove . ,(make-node))
+             (bloody-gate . ,(make-node))
+             (fuhrman-lied . ,(make-node))
+             (edta-on-sock . ,(make-node))
+             (drug-dealers-killed-nicole . ,(make-node))
+             (the-lapd-framed-oj . ,(make-node)))))
+      (let ((oj-abusive
+             (alist-ref 'oj-abusive nodes))
+            (oj-beat-nicole
+             (alist-ref 'oj-beat-nicole nodes))
+            (oj-killed-nicole
+             (alist-ref 'oj-killed-nicole nodes))
+            (nicole-and-ron-were-killed 
+             (alist-ref 'nicole-and-ron-were-killed nodes))
+            (blood-on-sock 
+             (alist-ref 'blood-on-sock nodes))
+            (blood-in-ojs-car 
+             (alist-ref 'blood-in-ojs-car nodes))
+            (bloody-glove 
+             (alist-ref 'bloody-glove nodes))
+            (bloody-gate 
+             (alist-ref 'bloody-gate nodes))
+            (fuhrman-lied 
+             (alist-ref 'fuhrman-lied nodes))
+            (edta-on-sock 
+             (alist-ref 'edta-on-sock nodes))
+            (drug-dealers-killed-nicole 
+             (alist-ref 'drug-dealers-killed-nicole nodes))
+            (the-lapd-framed-oj 
+             (alist-ref 'the-lapd-framed-oj nodes)))
+        (let ((links
+               (list (make-link whence: oj-abusive
+                                whither: oj-beat-nicole)
+                     (make-link whence: oj-abusive
+                                whither: oj-killed-nicole)
+                     (make-link whence: evidence
+                                whither: oj-beat-nicole)
+                     (make-link whence: evidence
+                                whither: nicole-and-ron-were-killed)
+                     (make-link whence: evidence
+                                whither: blood-on-sock)
+                     (make-link whence: evidence
+                                whither: blood-in-ojs-car)
+                     (make-link whence: evidence
+                                whither: bloody-glove)
+                     (make-link whence: evidence
+                                whither: bloody-gate)
+                     (make-link whence: evidence
+                                whither: fuhrman-lied)
+                     (make-link whence: evidence
+                                whither: edta-on-sock)
+                     (make-link whence: nicole-and-ron-were-killed
+                                whither: drug-dealers-killed-nicole)
+                     (make-link whence: blood-on-sock
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: blood-in-ojs-car
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: bloody-glove
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: bloody-gate
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: fuhrman-lied
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: edta-on-sock
+                                whither: the-lapd-framed-oj)
+                     (make-link whence: oj-killed-nicole
+                                whither: drug-dealers-killed-nicole
+                                weight: inhibitory)
+                     (make-link whence: oj-killed-nicole
+                                whither: the-lapd-framed-oj
+                                weight: inhibitory))))
+          (debug (map (lambda (link) (cons (link-whence link)
+                                           (link-whither link)))
+                      links)))))
     
   #+END_SRC
+
+  do we want to have in-place mutation of the graph, btw? if we do a
+  =hash-table-copy=, we're still going to have references to nodes;
+  i'm beginning to see why david did the matrix thing.
+
+  we're going to have to deep-copy the hash table in that case; if we
+  merely used lists instead of e.g. node- and link-objects, that
+  wouldn't be the case.
+
+  bizarre, isn't it, that all nodes (save evidence) start off with an
+  activation of 0.01? the input activations make no
+  difference. interesting!
+
+  what about abstractions like =proposition=, =explain=, =contradict=,
+  etc.?
+
+  otherwise, if we do an in-place calculation, we still have to hold
+  $t + 1$ while calculating $t$ (see [[connectionist]]).
+
+  if we're doing symmetrical links, btw, can't we have incoming and
+  outgoing hash tables? although there's a space penalty, it becomes
+  trivial to calculate McClelland's $S_j$: "the sum of the excitatory
+  and inhibitory influences on unit $j$."
+
+  incoming and outgoing hash-tables are orthogonal to symmetry;
+  matrix-wise, however, aren't we dealing with transposing the
+  adjacency matrix?
+
+  in fact, we'd need two outgoing and two incoming links for each
+  relationship in a symmetrical graph.
+
+  #+BEGIN_SRC scheme :tangle test-hash-table.scm :shebang #!/usr/bin/env chicken-scheme
+    (use srfi-69 debug test)
+    
+    (let ((table (make-hash-table)))
+      (hash-table-update!/default
+       table
+       'a
+       (lambda (value)
+         (cons 1 value))
+       '())
+      (test
+       "the default is passed to lambda as-is"
+       '((a 1))
+       (hash-table->alist table)))
+  #+END_SRC
+
+  thagard speaks of networks, units, links; but also: elements,
+  constraints that underly the units and links. also: coherence
+  problem, hypotheses.
+
+  "In coherence theories of truth, the elements are propositions
+  . . ." so we also have propositions.
+
+  "Positive constraints can be a variety of relations among
+  propositions, including entailment and also more complex relations
+  such as explanation. The negative constraints can include
+  inconsistency, but also weaker constraints such as competition."
+
+  "Positive constraints arise from relations of explanation and
+  analogy that hold between propositions, and negative constraints
+  arise either because two hypotheses contradict each other or because
+  they compete with each other to explain the same evidence."
+
+  =echo-input.lisp= has: =(defun imply (lst prop) (explain lst
+  prop))=, which is at least one synonym. but, in general,
+  =proposition=, =explain=, =contradict= seem to suffice for the
+  examples.
+
+  let's have: problem, proposition, constraint.
+
+  problem contexts for proposition, explain, et.nc

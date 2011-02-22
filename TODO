@@ -33,6 +33,64 @@
   so: we'll have nodes (activation) and links (weight, whence,
   whither); no name for now.
 
+  actually:
+
+  #+BEGIN_SRC scheme
+    ;;; initial activations don't matter?
+    (a)
+    (b 0.5)
+    (c 0.9 "Howdy Doody")
+    
+    (a b)
+    (a c -0.5)
+    
+    (evidence a)
+    (evidence c)
+    
+    ;;; all this (v. supra) is bad compared to the
+    ;;; ({explain,contradict,...} ...) mechanisms; what's the big deal
+    ;;; about key words, anyway?
+    ;;; 
+    ;;; would need to have the following to simulate (explain ...), etc.
+    
+    ((a b) c)
+    ((a c) b -0.5)
+    ((a b) evidence)
+    
+    ;;; should it look followingly instead?
+    
+    (use connectionist (decay 0.5) ...)
+    
+    (propose a)
+    (propose b 0.75)
+    (propose c -0.5 "Foo")
+    
+    ;;; though ECHO never really sets the initial activations for
+    ;;; propositions; so maybe the following:
+    
+    (propose a)
+    (propose b "Foo")
+    (propose c "Bar")
+    
+    (explain (a c) b)
+    (contradict (b) a)
+    
+    ;;; or simply:
+    
+    (contradict b a -0.75)
+    
+    (data a b)
+    
+    ;;; or maybe:
+    
+    (evidence a b)
+    
+    ;;; hmm.
+  #+END_SRC
+
+  what about joshua bloch's idea about starting with the API first?
+  (see seibel's book.) hmm.
+
   #+BEGIN_SRC scheme :tangle influence.scm
     (module
      influence
@@ -58,11 +116,16 @@
     
      (defstruct proposition
        (activation default-activation)
-       (description default-description))
+       (description default-description)
+       ;; propositions are trivially accepted, rejected or something
+       ;; orthogonal? a default of #t is trivially optimistic.
+       (accepted? #t)
+       (evidence? #f))
     
      (define evidence
        (make-proposition activation: maximum-activation
-                         description: "Evidence"))
+                         description: "Evidence"
+                         evidence?: #t))
     
      (define (evidence? proposition)
        (eq? evidence proposition))
@@ -74,7 +137,7 @@
      (defstruct problem
        (propositions
         ;; should we rethink this at some point?
-        (let ((propositions (make-hash-table eq? hash-by-identity)))
+        (let ((propositions (make-hash-table eq? hash-by-identity))) 
           (hash-table-set! propositions 'evidence evidence)
           propositions))
        (constraints (make-hash-table eq? hash-by-identity)))
@@ -83,13 +146,15 @@
     
      (define link!
        (case-lambda
-        ((constraints whence whither)
-         (link! constraints whence whither default-weight))
-        ((constraints whence whither weight)
-         (let ((constraint (make-constraint weight: weight
-                                            whither: whither)))
+        ((problem whence whither)
+         (link! problem whence whither default-weight))
+        ((problem whence whither weight)
+         (let* ((whither (hash-table-ref (problem-propositions problem)
+                                         whither))
+                (constraint (make-constraint weight: weight
+                                             whither: whither)))
            (hash-table-update!/default
-            constraints
+            (problem-constraints problem)
             whence
             (cut cons constraint <>)
             '())))))
@@ -98,19 +163,23 @@
     ;;; e.g. certain default weights.
      (define link-symmetrically!
        (case-lambda
-        ((constraints whence whither)
-         (link-symmetrically! constraints whence whither default-weight))
-        ((constraints whence whither weight)
-         (link! constraints whence whither)
-         (link! constraints whither whence)))) 
+        ((problem whence whither)
+         (link-symmetrically! problem whence whither default-weight))
+        ((problem whence whither weight)
+         (link! problem whence whither)
+         (link! problem whither whence)))) 
     
      (define cohere!
        (case-lambda
         ((cohaeretors cohaerendum)
          (cohere! cohaeretors cohaerendum default-weight))
         ((cohaeretors cohaerendum weight)
-         (current-problem cohaeretors cohaerendum weight))
+         (cohere! (current-problem) cohaeretors cohaerendum weight))
         ((problem cohaeretors cohaerendum weight)
+         (for-each
+          (cut link-symmetrically! problem cohaerendum <> weight)
+          cohaeretors)
+         #;
          (let ((propositions (problem-propositions problem))
                (constraints (problem-constraints problem)))
            (let ((cohaerendum (hash-table-ref propositions cohaerendum)))
@@ -157,7 +226,7 @@
           (make-proposition activation description)))))
     
      (define (with-problem problem thunk)
-       (parameterize ((current-problem problem)) (thunk))))
+       (parameterize ((current-problem problem)) (thunk))))    
     
   #+END_SRC
 
@@ -261,6 +330,68 @@
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
     (include "influence.scm")
     (import influence)
+    (use debug srfi-1 matchable)
+    
+    (define (solve! problem)
+      (define maximum-iterations 5000)
+    
+      (define (settled? delta)
+        (zera? delta))
+    
+      (let ((propositions (problem-propositions problem))
+            (constraints (problem-constraints problem)))
+        (hash-table-walk
+         propositions
+         (lambda (name proposition)
+           (if (not (proposition-evidence? proposition))
+               (proposition-activation-set! proposition default-activation))))
+        (let iterate ((iteration 0)
+                      (delta +Inf))
+          (debug iteration delta)
+          (if (or (zero? delta)
+                  (> iteration maximum-iterations))
+              problem
+              (let ((activations
+                     (hash-table-fold
+                      propositions
+                      (lambda (name proposition activations)
+                        (let ((activation
+                               (if (proposition-evidence? proposition)
+                                   (proposition-activation proposition)
+                                   (let ((incoming-activation
+                                          (apply + (map (compose proposition-activation
+                                                                 constraint-whither)
+                                                        (hash-table-ref constraints
+                                                                        name))))
+                                         (activation (proposition-activation proposition)))
+                                     (if (positive? incoming-activation)
+                                         (- maximum-activation activation)
+                                         (- activation minimum-activation))))))
+                          (alist-cons name activation activations)))
+                      '())))
+                ;; do we need this read step, or can we simply update and take
+                ;; the delta? let's update and take the delta. no; unless we
+                ;; mutate, we need to read the delta.
+                (let ((delta
+                       (apply +
+                              (map (match-lambda
+                                       ((name . activation)
+                                        (- activation
+                                           (proposition-activation
+                                            (hash-table-ref propositions name)))))
+                                   activations))))
+                  (for-each (match-lambda
+                                ((name . activation)
+                                 (hash-table-update! propositions
+                                                     name
+                                                     (lambda (proposition)
+                                                       (proposition-activation-set!
+                                                        proposition
+                                                        activation)
+                                                       proposition))))
+                            activations)
+                  (iterate (add1 iteration)
+                           delta)))))))
     
     (let ((oj (make-problem)))
       (with-problem
@@ -301,5 +432,46 @@
                       fuhrman-lied
                       edta-on-sock)) 
     
-         'harro)))    
+         (debug (solve! oj)))))
+    
+  #+END_SRC
+
+  what does it mean to solve a coherence problem, btw? bipartition of
+  propositions into accepted or rejected. if we're doing this
+  in-place, we can simply set a flag on the proposition to =accepted?
+  => #t=.
+
+  think along the lines of =(solve problem solver)=, where =solver= is
+  e.g. connectionist instantiated with certain parameters =(decay
+  0.5)=, etc.
+
+  #+BEGIN_SRC scheme :tangle test-fold.scm :shebang #!/usr/bin/env chicken-scheme
+    (use srfi-1 debug)
+    
+    (debug
+     (fold (lambda (a b c)
+             (debug a b c)
+             (+ a b c))
+           0
+           '(1 2)
+           '(3 4)))
+    
+  #+END_SRC
+
+  figure out a way to set the default shebang!
+
+  #+BEGIN_SRC scheme :tangle test-equality.scm :shebang #!/usr/bin/env chicken-scheme
+    (use defstruct debug srfi-69 srfi-9)
+    
+    (defstruct a (b 1))
+    
+    (let ((table (make-hash-table eq?))
+          (a (make-a)))
+      (hash-table-set! table a 2)
+      (hash-table-ref table a)
+      (a-b-set! a 2)
+      ;; this throws an error! is it doing some sort of deep comparison,
+      ;; or copy-on-write?
+      (hash-table-ref table a))
+    
   #+END_SRC

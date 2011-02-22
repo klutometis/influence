@@ -34,7 +34,7 @@
   whither); no name for now.
 
   #+BEGIN_SRC scheme :tangle graph.scm :shebang #!/usr/bin/env chicken-scheme
-    (use srfi-26 defstruct matchable debug)
+    (use srfi-26 srfi-69 defstruct matchable debug)
     
     (define default-activation 0.01)
     (define initial-activation default-activation)
@@ -45,173 +45,144 @@
     (define inhibitory -0.06)
     (define default-weight excitatory)
     
+    (define default-description "")
+    
     (defstruct proposition
       (activation default-activation)
-      (description ""))
+      (description default-description))
+    
+    (define evidence
+      (make-proposition activation: maximum-activation
+                        description: "Evidence"))
+    
+    (define (evidence? proposition)
+      (eq? evidence proposition))
     
     (defstruct constraint
       (weight default-weight)
       whither)
     
     (defstruct problem
-      (propositions (make-hash-table eq? hash-by-identity))
+      (propositions
+       ;; should we rethink this at some point?
+       (let ((propositions (make-hash-table eq? hash-by-identity)))
+         (hash-table-set! propositions 'evidence evidence)
+         propositions))
       (constraints (make-hash-table eq? hash-by-identity)))
     
-    (define evidence
-      (make-node activation: maximum-activation
-                 description: "Evidence"))
+    (define current-problem (make-parameter (make-problem)))
     
     (define link!
       (case-lambda
-       ((problem whence whither)
+       ((constraints whence whither)
         (link! constraints whence whither default-weight))
-       ((problem whence whither weight)
-        ;; create whither if it doesn't exist?
-        (let ((whence (hash-table-ref
-                       (problem-propositions problem)
-                       whence))
-              (whither (hash-table-ref
-                        (problem-propositions problem)
-                        whither)))
-          (let ((constraint (make-constraint weight: weight
-                                             whither: whither)))
-            (hash-table-update!/default
-             constraints
-             whence
-             (cut cons constraint <>)
-             '()))))))
+       ((constraints whence whither weight)
+        (let ((constraint (make-constraint weight: weight
+                                           whither: whither)))
+          (hash-table-update!/default
+           constraints
+           whence
+           (cut cons constraint <>)
+           '())))))
     
     ;;; explain, contradict should call link-symmetrically! with
     ;;; e.g. certain default weights.
     (define link-symmetrically!
       (case-lambda
-       ((problem whence whither)
-        (link-symmetrically! problem whence whither default-weight))
-       ((problem whence whither weight)
-        (link! problem whence whither)
-        (link! problem whither whence)))) 
+       ((constraints whence whither)
+        (link-symmetrically! constraints whence whither default-weight))
+       ((constraints whence whither weight)
+        (link! constraints whence whither)
+        (link! constraints whither whence)))) 
+    
+    (define cohere!
+      (case-lambda
+       ((cohaeretors cohaerendum)
+        (cohere! cohaeretors cohaerendum default-weight))
+       ((cohaeretors cohaeretum weight)
+        (current-problem cohaeretors cohaerendum weight))
+       ((problem cohaeretors cohaerendum weight)
+        (let ((propositions (problem-propositions problem))
+              (constraints (problem-constraints problem)))
+          (let ((cohaerendum (hash-table-ref propositions cohaerendum)))
+            (for-each
+             (lambda (cohaeretor)
+               (let ((cohaeretor (hash-table-ref propositions cohaeretor)))
+                 (link-symmetrically! constraints cohaeretor cohaerendum weight)))
+             cohaeretors))))))
     
     ;;; or maybe explain should do the symbol lookup, etc.
+    (define explain!
+      (case-lambda
+       ((explanators explanandum)
+        (explain! (current-problem) explanators explanandum))
+       ((problem explanators explanandum)
+        (cohere! problem explanators explanandum excitatory))))
     
-    (let ((problem (make-problem))
-          (propositions
-           `((oj-abusive . ,(make-proposition))
-             (oj-beat-nicole . ,(make-proposition))
-             (oj-killed-nicole . ,(make-proposition))
-             (nicole-and-ron-were-killed . ,(make-proposition))
-             (blood-on-sock . ,(make-proposition))
-             (blood-in-ojs-car . ,(make-proposition))
-             (bloody-glove . ,(make-proposition))
-             (bloody-gate . ,(make-proposition))
-             (fuhrman-lied . ,(make-proposition))
-             (edta-on-sock . ,(make-proposition))
-             (drug-dealers-killed-nicole . ,(make-proposition))
-             (the-lapd-framed-oj . ,(make-proposition)))))
-      (for-each (match-lambda
-                    ((name . proposition)
-                     (hash-table-set! (problem-propositions problem) name node)))
-                propositions)
-      (link-symmetrically! problem 'oj-abusive 'oj-beat-nicole)
-      (link-symmetrically! problem 'oj-abusive 'oj-killed-nicole)
-      (link-symmetrically! problem 'evidence 'oj-beat-nicole)
-      (link-symmetrically! problem 'evidence 'nicole-and-ron-were-killed)
-      (link-symmetrically! problem 'evidence 'blood-on-sock)
-      (link-symmetrically! problem 'evidence 'blood-in-ojs-car)
-      (link-symmetrically! problem 'evidence 'bloody-glove)
-      (link-symmetrically! problem 'evidence 'bloody-gate)
-      (link-symmetrically! problem 'evidence 'fuhrman-lied)
-      (link-symmetrically! problem 'evidence 'edta-on-sock)
-      (link-symmetrically! problem 'nicole-and-ron-were-killed 'drug-dealers-killed-nicole)
-      (link-symmetrically! problem 'blood-on-sock 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'blood-in-ojs-car 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'bloody-glove 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'bloody-gate 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'fuhrman-lied 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'edta-on-sock 'the-lapd-framed-oj)
-      (link-symmetrically! problem 'oj-killed-nicole 'drug-dealers-killed-nicole inhibitory)
-      (link-symmetrically! problem 'oj-killed-nicole 'the-lapd-framed-oj inhibitory))
+    (define contradict!
+      (case-lambda
+       ((contradictors contradictum)
+        (contradict! (current-problem) contradictors contradictum))
+       ((problem contradictors contradictum)
+        (cohere! problem contradictors contradictum inhibitory))))
     
-    (let ((nodes
-           `((oj-abusive . ,(make-node))
-             (oj-beat-nicole . ,(make-node))
-             (oj-killed-nicole . ,(make-node))
-             (nicole-and-ron-were-killed . ,(make-node))
-             (blood-on-sock . ,(make-node))
-             (blood-in-ojs-car . ,(make-node))
-             (bloody-glove . ,(make-node))
-             (bloody-gate . ,(make-node))
-             (fuhrman-lied . ,(make-node))
-             (edta-on-sock . ,(make-node))
-             (drug-dealers-killed-nicole . ,(make-node))
-             (the-lapd-framed-oj . ,(make-node)))))
-      (let ((oj-abusive
-             (alist-ref 'oj-abusive nodes))
-            (oj-beat-nicole
-             (alist-ref 'oj-beat-nicole nodes))
-            (oj-killed-nicole
-             (alist-ref 'oj-killed-nicole nodes))
-            (nicole-and-ron-were-killed 
-             (alist-ref 'nicole-and-ron-were-killed nodes))
-            (blood-on-sock 
-             (alist-ref 'blood-on-sock nodes))
-            (blood-in-ojs-car 
-             (alist-ref 'blood-in-ojs-car nodes))
-            (bloody-glove 
-             (alist-ref 'bloody-glove nodes))
-            (bloody-gate 
-             (alist-ref 'bloody-gate nodes))
-            (fuhrman-lied 
-             (alist-ref 'fuhrman-lied nodes))
-            (edta-on-sock 
-             (alist-ref 'edta-on-sock nodes))
-            (drug-dealers-killed-nicole 
-             (alist-ref 'drug-dealers-killed-nicole nodes))
-            (the-lapd-framed-oj 
-             (alist-ref 'the-lapd-framed-oj nodes)))
-        (let ((links
-               (list (make-link whence: oj-abusive
-                                whither: oj-beat-nicole)
-                     (make-link whence: oj-abusive
-                                whither: oj-killed-nicole)
-                     (make-link whence: evidence
-                                whither: oj-beat-nicole)
-                     (make-link whence: evidence
-                                whither: nicole-and-ron-were-killed)
-                     (make-link whence: evidence
-                                whither: blood-on-sock)
-                     (make-link whence: evidence
-                                whither: blood-in-ojs-car)
-                     (make-link whence: evidence
-                                whither: bloody-glove)
-                     (make-link whence: evidence
-                                whither: bloody-gate)
-                     (make-link whence: evidence
-                                whither: fuhrman-lied)
-                     (make-link whence: evidence
-                                whither: edta-on-sock)
-                     (make-link whence: nicole-and-ron-were-killed
-                                whither: drug-dealers-killed-nicole)
-                     (make-link whence: blood-on-sock
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: blood-in-ojs-car
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: bloody-glove
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: bloody-gate
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: fuhrman-lied
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: edta-on-sock
-                                whither: the-lapd-framed-oj)
-                     (make-link whence: oj-killed-nicole
-                                whither: drug-dealers-killed-nicole
-                                weight: inhibitory)
-                     (make-link whence: oj-killed-nicole
-                                whither: the-lapd-framed-oj
-                                weight: inhibitory))))
-          (debug (map (lambda (link) (cons (link-whence link)
-                                           (link-whither link)))
-                      links)))))
+    (define propose!
+      (case-lambda
+       ((name)
+        (propose! name default-activation))
+       ((name activation)
+        (propose! name activation default-description))
+       ((name activation description)
+        (propose! (current-problem) name activation description))
+       ((problem name activation description)
+        (hash-table-set!
+         (problem-propositions problem)
+         name
+         (make-proposition activation description)))))
+    
+    (define (with-problem problem thunk)
+      (parameterize ((current-problem problem)) (thunk)))
+    
+    (let ((oj (make-problem)))
+      (with-problem
+       oj
+       (lambda ()
+         (propose! 'oj-abusive)
+         (propose! 'oj-beat-nicole)
+         (propose! 'oj-killed-nicole)
+         (propose! 'nicole-and-ron-were-killed)
+         (propose! 'blood-on-sock)
+         (propose! 'blood-in-ojs-car)
+         (propose! 'bloody-glove)
+         (propose! 'bloody-gate)
+         (propose! 'fuhrman-lied)
+         (propose! 'edta-on-sock)
+         (propose! 'drug-dealers-killed-nicole)
+         (propose! 'the-lapd-framed-oj)
+    
+         (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
+         (explain! '(blood-on-sock
+                     blood-in-ojs-car
+                     bloody-glove
+                     bloody-gate
+                     fuhrman-lied
+                     edta-on-sock)
+                   'the-lapd-framed-oj)
+         (explain! '(oj-beat-nicole
+                     nicole-and-ron-were-killed
+                     blood-on-sock
+                     blood-in-ojs-car
+                     bloody-glove
+                     bloody-gate
+                     fuhrman-lied
+                     edta-on-sock)
+                   'evidence)
+    
+         (contradict! '(drug-dealers-killed-nicole
+                        the-lapd-framed-oj)
+                      'oj-killed-nicole)
+    
+         'harro))) 
     
   #+END_SRC
 
@@ -286,3 +257,16 @@
   let's have: problem, proposition, constraint.
 
   problem contexts for proposition, explain, et.nc
+
+  #+BEGIN_SRC scheme :tangle test-with-parameter.scm :shebang #!/usr/bin/env chicken-scheme
+    (use srfi-39 test)
+    
+    (define current-a (make-parameter 1))
+    
+    (define (with-a a thunk)
+      (parameterize ((current-a a)) (thunk)))
+    
+    (with-a 2 (lambda () (test 2 (current-a))))
+    
+    (test 1 (current-a))
+  #+END_SRC

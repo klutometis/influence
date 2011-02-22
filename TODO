@@ -33,156 +33,131 @@
   so: we'll have nodes (activation) and links (weight, whence,
   whither); no name for now.
 
-  #+BEGIN_SRC scheme :tangle graph.scm :shebang #!/usr/bin/env chicken-scheme
-    (use srfi-26 srfi-69 defstruct matchable debug)
+  #+BEGIN_SRC scheme :tangle influence.scm
+    (module
+     influence
+     *
+     (import scheme
+             chicken)
     
-    (define default-activation 0.01)
-    (define initial-activation default-activation)
-    (define maximum-activation 0.99)
-    (define minimum-activation -0.99)
+     (use srfi-69
+          defstruct
+          matchable
+          debug)
     
-    (define excitatory 0.04)
-    (define inhibitory -0.06)
-    (define default-weight excitatory)
+     (define default-activation 0.01)
+     (define initial-activation default-activation)
+     (define maximum-activation 0.99)
+     (define minimum-activation -0.99)
     
-    (define default-description "")
+     (define excitatory 0.04)
+     (define inhibitory -0.06)
+     (define default-weight excitatory)
     
-    (defstruct proposition
-      (activation default-activation)
-      (description default-description))
+     (define default-description "")
     
-    (define evidence
-      (make-proposition activation: maximum-activation
-                        description: "Evidence"))
+     (defstruct proposition
+       (activation default-activation)
+       (description default-description))
     
-    (define (evidence? proposition)
-      (eq? evidence proposition))
+     (define evidence
+       (make-proposition activation: maximum-activation
+                         description: "Evidence"))
     
-    (defstruct constraint
-      (weight default-weight)
-      whither)
+     (define (evidence? proposition)
+       (eq? evidence proposition))
     
-    (defstruct problem
-      (propositions
-       ;; should we rethink this at some point?
-       (let ((propositions (make-hash-table eq? hash-by-identity)))
-         (hash-table-set! propositions 'evidence evidence)
-         propositions))
-      (constraints (make-hash-table eq? hash-by-identity)))
+     (defstruct constraint
+       (weight default-weight)
+       whither)
     
-    (define current-problem (make-parameter (make-problem)))
+     (defstruct problem
+       (propositions
+        ;; should we rethink this at some point?
+        (let ((propositions (make-hash-table eq? hash-by-identity)))
+          (hash-table-set! propositions 'evidence evidence)
+          propositions))
+       (constraints (make-hash-table eq? hash-by-identity)))
     
-    (define link!
-      (case-lambda
-       ((constraints whence whither)
-        (link! constraints whence whither default-weight))
-       ((constraints whence whither weight)
-        (let ((constraint (make-constraint weight: weight
-                                           whither: whither)))
-          (hash-table-update!/default
-           constraints
-           whence
-           (cut cons constraint <>)
-           '())))))
+     (define current-problem (make-parameter (make-problem)))
+    
+     (define link!
+       (case-lambda
+        ((constraints whence whither)
+         (link! constraints whence whither default-weight))
+        ((constraints whence whither weight)
+         (let ((constraint (make-constraint weight: weight
+                                            whither: whither)))
+           (hash-table-update!/default
+            constraints
+            whence
+            (cut cons constraint <>)
+            '())))))
     
     ;;; explain, contradict should call link-symmetrically! with
     ;;; e.g. certain default weights.
-    (define link-symmetrically!
-      (case-lambda
-       ((constraints whence whither)
-        (link-symmetrically! constraints whence whither default-weight))
-       ((constraints whence whither weight)
-        (link! constraints whence whither)
-        (link! constraints whither whence)))) 
+     (define link-symmetrically!
+       (case-lambda
+        ((constraints whence whither)
+         (link-symmetrically! constraints whence whither default-weight))
+        ((constraints whence whither weight)
+         (link! constraints whence whither)
+         (link! constraints whither whence)))) 
     
-    (define cohere!
-      (case-lambda
-       ((cohaeretors cohaerendum)
-        (cohere! cohaeretors cohaerendum default-weight))
-       ((cohaeretors cohaeretum weight)
-        (current-problem cohaeretors cohaerendum weight))
-       ((problem cohaeretors cohaerendum weight)
-        (let ((propositions (problem-propositions problem))
-              (constraints (problem-constraints problem)))
-          (let ((cohaerendum (hash-table-ref propositions cohaerendum)))
-            (for-each
-             (lambda (cohaeretor)
-               (let ((cohaeretor (hash-table-ref propositions cohaeretor)))
-                 (link-symmetrically! constraints cohaeretor cohaerendum weight)))
-             cohaeretors))))))
+     (define cohere!
+       (case-lambda
+        ((cohaeretors cohaerendum)
+         (cohere! cohaeretors cohaerendum default-weight))
+        ((cohaeretors cohaerendum weight)
+         (current-problem cohaeretors cohaerendum weight))
+        ((problem cohaeretors cohaerendum weight)
+         (let ((propositions (problem-propositions problem))
+               (constraints (problem-constraints problem)))
+           (let ((cohaerendum (hash-table-ref propositions cohaerendum)))
+             (for-each
+              (lambda (cohaeretor)
+                (let ((cohaeretor (hash-table-ref propositions cohaeretor)))
+                  (link-symmetrically! constraints cohaeretor cohaerendum weight)))
+              cohaeretors))))))
     
     ;;; or maybe explain should do the symbol lookup, etc.
-    (define explain!
-      (case-lambda
-       ((explanators explanandum)
-        (explain! (current-problem) explanators explanandum))
-       ((problem explanators explanandum)
-        (cohere! problem explanators explanandum excitatory))))
+     (define explain!
+       (case-lambda
+        ((explanators explanandum)
+         (explain! (current-problem) explanators explanandum))
+        ((problem explanators explanandum)
+         (cohere! problem explanators explanandum excitatory))))
     
-    (define contradict!
-      (case-lambda
-       ((contradictors contradictum)
-        (contradict! (current-problem) contradictors contradictum))
-       ((problem contradictors contradictum)
-        (cohere! problem contradictors contradictum inhibitory))))
+     (define contradict!
+       (case-lambda
+        ((contradictors contradictum)
+         (contradict! (current-problem) contradictors contradictum))
+        ((problem contradictors contradictum)
+         (cohere! problem contradictors contradictum inhibitory))))
     
-    (define propose!
-      (case-lambda
-       ((name)
-        (propose! name default-activation))
-       ((name activation)
-        (propose! name activation default-description))
-       ((name activation description)
-        (propose! (current-problem) name activation description))
-       ((problem name activation description)
-        (hash-table-set!
-         (problem-propositions problem)
-         name
-         (make-proposition activation description)))))
+     (define evidence!
+       (case-lambda
+        ((evidenced)
+         (evidence! (current-problem) evidenced))
+        ((problem evidenced)
+         (explain! evidenced 'evidence))))
     
-    (define (with-problem problem thunk)
-      (parameterize ((current-problem problem)) (thunk)))
+     (define propose!
+       (case-lambda
+        ((name)
+         (propose! name default-activation))
+        ((name activation)
+         (propose! name activation default-description))
+        ((name activation description)
+         (propose! (current-problem) name activation description))
+        ((problem name activation description)
+         (hash-table-set!
+          (problem-propositions problem)
+          name
+          (make-proposition activation description)))))
     
-    (let ((oj (make-problem)))
-      (with-problem
-       oj
-       (lambda ()
-         (propose! 'oj-abusive)
-         (propose! 'oj-beat-nicole)
-         (propose! 'oj-killed-nicole)
-         (propose! 'nicole-and-ron-were-killed)
-         (propose! 'blood-on-sock)
-         (propose! 'blood-in-ojs-car)
-         (propose! 'bloody-glove)
-         (propose! 'bloody-gate)
-         (propose! 'fuhrman-lied)
-         (propose! 'edta-on-sock)
-         (propose! 'drug-dealers-killed-nicole)
-         (propose! 'the-lapd-framed-oj)
-    
-         (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
-         (explain! '(blood-on-sock
-                     blood-in-ojs-car
-                     bloody-glove
-                     bloody-gate
-                     fuhrman-lied
-                     edta-on-sock)
-                   'the-lapd-framed-oj)
-         (explain! '(oj-beat-nicole
-                     nicole-and-ron-were-killed
-                     blood-on-sock
-                     blood-in-ojs-car
-                     bloody-glove
-                     bloody-gate
-                     fuhrman-lied
-                     edta-on-sock)
-                   'evidence)
-    
-         (contradict! '(drug-dealers-killed-nicole
-                        the-lapd-framed-oj)
-                      'oj-killed-nicole)
-    
-         'harro))) 
+     (define (with-problem problem thunk)
+       (parameterize ((current-problem problem)) (thunk))))
     
   #+END_SRC
 
@@ -269,4 +244,62 @@
     (with-a 2 (lambda () (test 2 (current-a))))
     
     (test 1 (current-a))
+  #+END_SRC
+
+  the verb associated with the bipartition of E into A and R is
+  "satisfy": one "satisfies" a coherence problem. no, sorry; that's
+  not true: one "solves" a coherence problem. (makes sense!)
+
+  #+BEGIN_QUOTE
+  To show that a given problem is a coherence problem in this sense,
+  it is necessary to specify the elements and constraints, provide an
+  interpretation of acceptance and rejection, and show that solutions
+  to the given problem do in fact involve satisfaction of the
+  specified constraints.
+  #+END_QUOTE
+
+  #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
+    (include "influence.scm")
+    (import influence)
+    
+    (let ((oj (make-problem)))
+      (with-problem
+       oj
+       (lambda ()
+         (propose! 'oj-abusive)
+         (propose! 'oj-beat-nicole)
+         (propose! 'oj-killed-nicole)
+         (propose! 'nicole-and-ron-were-killed)
+         (propose! 'blood-on-sock)
+         (propose! 'blood-in-ojs-car)
+         (propose! 'bloody-glove)
+         (propose! 'bloody-gate)
+         (propose! 'fuhrman-lied)
+         (propose! 'edta-on-sock)
+         (propose! 'drug-dealers-killed-nicole)
+         (propose! 'the-lapd-framed-oj)
+    
+         (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
+         (explain! '(blood-on-sock
+                     blood-in-ojs-car
+                     bloody-glove
+                     bloody-gate
+                     fuhrman-lied
+                     edta-on-sock)
+                   'the-lapd-framed-oj)
+    
+         (contradict! '(drug-dealers-killed-nicole
+                        the-lapd-framed-oj)
+                      'oj-killed-nicole)
+    
+         (evidence! '(oj-beat-nicole
+                      nicole-and-ron-were-killed
+                      blood-on-sock
+                      blood-in-ojs-car
+                      bloody-glove
+                      bloody-gate
+                      fuhrman-lied
+                      edta-on-sock)) 
+    
+         'harro)))    
   #+END_SRC

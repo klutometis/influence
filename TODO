@@ -333,6 +333,11 @@
     (use debug srfi-1 matchable)
     
     (define (solve! problem)
+      (define (clamp low high value)
+        (max low (min high value)))
+    
+      (define decay 0.05)
+    
       (define maximum-iterations 5000)
     
       (define (settled? delta)
@@ -364,10 +369,16 @@
                                                         (hash-table-ref constraints
                                                                         name))))
                                          (activation (proposition-activation proposition)))
-                                     (if (positive? incoming-activation)
-                                         (- maximum-activation activation)
-                                         (- activation minimum-activation))))))
-                          (alist-cons name activation activations)))
+                                     (+ (* activation (- 1 decay))
+                                        (* incoming-activation
+                                           (if (positive? incoming-activation)
+                                               (- maximum-activation activation)
+                                               (- activation minimum-activation))))))))
+                          (alist-cons name
+                                      (clamp minimum-activation
+                                             maximum-activation
+                                             activation)
+                                      activations)))
                       '())))
                 ;; do we need this read step, or can we simply update and take
                 ;; the delta? let's update and take the delta. no; unless we
@@ -379,7 +390,7 @@
                                         (- activation
                                            (proposition-activation
                                             (hash-table-ref propositions name)))))
-                                   activations))))
+                                   activations)))) 
                   (for-each (match-lambda
                                 ((name . activation)
                                  (hash-table-update! propositions
@@ -473,5 +484,22 @@
       ;; this throws an error! is it doing some sort of deep comparison,
       ;; or copy-on-write?
       (hash-table-ref table a))
+    
+  #+END_SRC
+
+  #+BEGIN_SRC scheme :tangle test-range.scm :shebang #!/usr/bin/env chicken-scheme
+    (use debug srfi-26)
+    
+    (define (clamp low high value)
+      (max low (min high value)))
+    
+    (let ((min-n -1)
+          (max-n 1)
+          (x 9)
+          (y -9)
+          (z 0))
+      (debug
+       (map (cut clamp min-n max-n <>)
+            (list x y z))))
     
   #+END_SRC

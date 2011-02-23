@@ -94,7 +94,7 @@
            (until (> (expt base power) integer)))
           => power))))
 
-(defstruct processor pre-process process post-process)
+(defstruct processor process post-process)
 
 (define (make-animation-processor animation)
   (let ((temp-dir (create-temporary-directory))
@@ -102,7 +102,6 @@
     (let ((output-template
            (format "~~~a,48d.gif" temp-digits)))
       (make-processor
-       pre-process: noop
        process:
        (lambda (problem iteration)
          (let-values
@@ -126,7 +125,6 @@
 (define (make-time-series-processor time-series)
   (let ((time-series-data (create-temporary-file)))
     (make-processor
-     pre-process: noop
      process:
      (let ((time-series-data (open-output-file time-series-data)))
        (lambda (problem iteration)
@@ -172,9 +170,6 @@
   (lambda (problem)
     (let ((propositions (problem-propositions problem))
           (constraints (problem-constraints problem)))
-      (for-each (lambda (processor)
-                  ((processor-pre-process processor) problem))
-                processors)
       (hash-table-walk
        propositions
        (lambda (name proposition)
@@ -182,13 +177,12 @@
              (proposition-activation-set! proposition (initial-activation)))))
       (let iterate ((iteration 0)
                     (delta +Inf))
+        (for-each (lambda (processor)
+                    ((processor-process processor) problem iteration))
+                  processors)
         (if (or (< (abs delta) (epsilon))
                 (> iteration (maximum-iterations)))
             (begin
-              ;; one last normal processing at t_n
-              (for-each (lambda (processor)
-                          ((processor-process processor) problem iteration))
-                        processors)
               (for-each (lambda (processor)
                           ((processor-post-process processor) problem))
                         processors)
@@ -220,12 +214,7 @@
                                            activation)
                                     activations)))
                     '()))) 
-              (for-each (lambda (processor)
-                          ((processor-process processor) problem iteration))
-                        processors)
-              ;; do we need this read step, or can we simply update and take
-              ;; the delta? let's update and take the delta. no; unless we
-              ;; mutate, we need to read the delta.
+              ;; can't we update and take the delta simultaneously?
               (let ((delta
                      (apply +
                             (map (match-lambda
@@ -244,5 +233,5 @@
                                                       activation)
                                                      proposition))))
                           activations)
-                (iterate (add1 iteration)
+                (iterate (+ iteration 1)
                          delta))))))))

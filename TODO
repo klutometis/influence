@@ -336,17 +336,15 @@
 
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
     (include "influence.scm")
-    (import foreign influence)
+    (import files influence)
     (use debug
          srfi-1
          matchable
          format
          posix
          foof-loop
-         shell)
-    
-    (foreign-declare "#include <stdlib.h>")
-    (define mkdtemp (foreign-lambda c-string "mkdtemp" c-string))
+         shell
+         defstruct)
     
     (define maximum-iterations (make-parameter 5000))
     
@@ -431,31 +429,107 @@
     (define (clamp low high value)
       (max low (min high value)))
     
-    (define (cardinality integer base)
-      (loop ((for power (up-from 0))
-             (until (> (expt base power) integer))) => power))
+    (define cardinality
+      (case-lambda
+       ((integer) (cardinality integer 10))
+       ((integer base)
+        (loop ((for power (up-from 0))
+               (until (> (expt base power) integer)))
+              => power))))
+    
+    (defstruct processor pre-process process post-process)
+    
+    (define (make-animation-processor animation)
+      (let ((temp-dir (create-temporary-directory))
+            (temp-digits (cardinality (maximum-iterations))))
+        (let ((output-template
+               (format "~~~a,48d.gif" temp-digits)))
+          (make-processor
+           pre-process: noop
+           process:
+           (lambda (problem iteration)
+             (let-values
+                 (((in out id)
+                   (process
+                    "dot" `("-Tgif"
+                            "-o" ,(make-pathname temp-dir
+                                                 (format output-template
+                                                         iteration))))))
+               (close-input-port in)
+               (with-output-to-port
+                   out
+                 (lambda () (display-problem/dot problem)))
+               (close-output-port out)))
+           post-process:
+           (lambda (problem)
+             (run (convert "$(" find ,temp-dir -name \'*.gif\' \| sort &&
+                           find ,temp-dir -name \'*.gif\' \| sort -r ")"
+                           -loop 0 ,animation)))))))
+    
+    (define (make-time-series-processor time-series)
+      (let ((time-series-data (create-temporary-file)))
+        (make-processor
+         pre-process: noop
+         process:
+         (let ((time-series-data (open-output-file time-series-data)))
+           (lambda (problem iteration)
+             (display (string-join
+                       (map
+                        (compose number->string proposition-activation)
+                        (hash-table-values (problem-propositions problem))))
+                      time-series-data)
+             (newline time-series-data)))
+         post-process:
+         (lambda (problem)
+           (let ((propositions (problem-propositions problem))
+                 (document "set term pngcairo size 1024,768 font \",8\" enhanced crop; set output \"~a\"; plot ~a
+    "))
+             (let ((elements
+                    (loop ((for name (in-list (hash-table-keys propositions)))
+                           (for proposition
+                                (in-list (hash-table-values propositions)))
+                           (for column (up-from 1))
+                           (for elements
+                                (listing
+                                 (format "\"~a\" using ~a with lines title \"~a\""
+                                         time-series-data
+                                         column
+                                         name))))
+                          => elements)))
+               (let-values (((in out id) (process "gnuplot")))
+                 (close-input-port in)
+                 (format
+                  out
+                  document
+                  time-series
+                  (string-join elements ", "))
+                 (close-output-port out))))))))
     
     (define solve!
       (case-lambda
-       (() (solve! (current-problem)))
-       ((problem)
+       ((algorithm) (solve! algorithm (current-problem)))
+       ((algorithm problem) (algorithm problem))))
+    
+    (define (connectionist . processors)
+      (lambda (problem)
         (let ((propositions (problem-propositions problem))
-              (constraints (problem-constraints problem))
-              (time-series-data (open-output-file "oj.dat"))
-              (temp-dir (mkdtemp "/tmp/XXXXXX"))
-              (temp-digits (cardinality (maximum-iterations) 10))
-              (animation "oj.gif"))
+              (constraints (problem-constraints problem)))
           (hash-table-walk
            propositions
            (lambda (name proposition)
              (if (not (proposition-evidence? proposition))
                  (proposition-activation-set! proposition (initial-activation)))))
+          (for-each (lambda (processor)
+                      ((processor-pre-process processor) problem))
+                    processors)
           (let iterate ((iteration 0)
                         (delta +Inf))
             (if (or (< (abs delta) (epsilon))
                     (> iteration (maximum-iterations)))
                 (begin
-                  (run (convert "$(" find ,temp-dir -name \'*.gif\' \| sort && find ,temp-dir -name \'*.gif\' \| sort -r ")" -loop 0 ,animation))
+                  (for-each (lambda (processor)
+                              ((processor-post-process processor) problem))
+                            processors)
                   problem)
                 (let ((activations
                        (hash-table-fold
@@ -483,13 +557,7 @@
                                                (maximum-activation)
                                                activation)
                                         activations)))
-                        '())))
-                  (display (string-join
-                            (map
-                             (compose number->string proposition-activation)
-                             (hash-table-values propositions)))
-                           time-series-data)
-                  (newline time-series-data)
+                        '()))) 
                   ;; do we need this read step, or can we simply update and take
                   ;; the delta? let's update and take the delta. no; unless we
                   ;; mutate, we need to read the delta.
@@ -511,64 +579,56 @@
                                                           activation)
                                                          proposition))))
                               activations)
-                    (let*-values (((output-template)
-                                   (format "~~~a,48d.gif" temp-digits))
-                                  ((in out id)
-                                   (process "dot" `("-Tgif"
-                                                    "-o" ,(make-pathname
-                                                           temp-dir
-                                                           (format output-template
-                                                                   iteration))))))
-                      (close-input-port in)
-                      (with-output-to-port
-                          out
-                        (lambda () (display-problem/dot problem)))
-                      (close-output-port out))
+                    (for-each (lambda (processor)
+                                ((processor-process processor) problem iteration))
+                              processors)
                     (iterate (add1 iteration)
-                             delta)))))))))
+                             delta))))))))
     
-    (let ((oj (make-problem)))
-      (with-problem
-       oj
-       (lambda ()
-         (propose! 'oj-abusive)
-         (propose! 'oj-beat-nicole)
-         (propose! 'oj-killed-nicole)
-         (propose! 'nicole-and-ron-were-killed)
-         (propose! 'blood-on-sock)
-         (propose! 'blood-in-ojs-car)
-         (propose! 'bloody-glove)
-         (propose! 'bloody-gate)
-         (propose! 'fuhrman-lied)
-         (propose! 'edta-on-sock)
-         (propose! 'drug-dealers-killed-nicole)
-         (propose! 'the-lapd-framed-oj)
+    (with-problem
+     (make-problem)
+     (lambda ()
+       (propose! 'oj-abusive)
+       (propose! 'oj-beat-nicole)
+       (propose! 'oj-killed-nicole)
+       (propose! 'nicole-and-ron-were-killed)
+       (propose! 'blood-on-sock)
+       (propose! 'blood-in-ojs-car)
+       (propose! 'bloody-glove)
+       (propose! 'bloody-gate)
+       (propose! 'fuhrman-lied)
+       (propose! 'edta-on-sock)
+       (propose! 'drug-dealers-killed-nicole)
+       (propose! 'the-lapd-framed-oj)
     
-         (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
-         (explain! '(blood-on-sock
-                     blood-in-ojs-car
-                     bloody-glove
-                     bloody-gate
-                     fuhrman-lied
-                     edta-on-sock)
-                   'the-lapd-framed-oj)
-         (explain! '(nicole-and-ron-were-killed)
-                   'drug-dealers-killed-nicole)
+       (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
+       (explain! '(blood-on-sock
+                   blood-in-ojs-car
+                   bloody-glove
+                   bloody-gate
+                   fuhrman-lied
+                   edta-on-sock)
+                 'the-lapd-framed-oj)
+       (explain! '(nicole-and-ron-were-killed)
+                 'drug-dealers-killed-nicole)
     
-         (contradict! '(drug-dealers-killed-nicole
-                        the-lapd-framed-oj)
-                      'oj-killed-nicole)
+       (contradict! '(drug-dealers-killed-nicole
+                      the-lapd-framed-oj)
+                    'oj-killed-nicole)
     
-         (evidence! '(oj-beat-nicole
-                      nicole-and-ron-were-killed
-                      blood-on-sock
-                      blood-in-ojs-car
-                      bloody-glove
-                      bloody-gate
-                      fuhrman-lied
-                      edta-on-sock)) 
+       (evidence! '(oj-beat-nicole
+                    nicole-and-ron-were-killed
+                    blood-on-sock
+                    blood-in-ojs-car
+                    bloody-glove
+                    bloody-gate
+                    fuhrman-lied
+                    edta-on-sock)) 
     
-         (display-problem/dot (solve! oj)))))
+       (display-problem/dot
+        (solve! (connectionist
+                 (make-animation-processor "oj.gif")
+                 (make-time-series-processor "oj-series.png"))))))
     
     #;
     (with-problem
@@ -588,7 +648,7 @@
     
        (display-problem/dot (solve! (current-problem)))))
     
-    #;
+     #;
      (with-problem
       (make-problem)
       (lambda ()
@@ -608,11 +668,11 @@
         (propose! 'OH5 "In calcination, metals add oxygen to become calxes. ")
         (propose! 'OH6 "In reduction, oxygen is given off.") ; 628
     
-        (propose! 'PH1 "Combustible bodies contain phlogiston.")    ; 624
+        (propose! 'PH1 "Combustible bodies contain phlogiston.")     ; 624
         (propose! 'PH2 "Combustible bodies contain matter of heat.") ; 652
         (propose! 'PH3 "In combustion, phlogiston is given off.")    ; 624
         (propose! 'PH4 "Phlogiston can pass from one body to another.") ; 625
-        (propose! 'PH5 "Metals contain phlogiston.")              ; 624
+        (propose! 'PH5 "Metals contain phlogiston.")               ; 624
         (propose! 'PH6 "In calcination, phlogiston is given off.") ; 624
     
                                             ; Contradictions:

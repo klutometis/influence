@@ -336,8 +336,11 @@
 
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
     (include "influence.scm")
-    (import influence)
-    (use debug srfi-1 matchable format)
+    (import foreign influence)
+    (use debug srfi-1 matchable format posix foof-loop shell)
+    
+    (foreign-declare "#include <stdlib.h>")
+    (define mkdtemp (foreign-lambda c-string "mkdtemp" c-string))
     
     (define maximum-iterations (make-parameter 5000))
     
@@ -355,7 +358,7 @@
                                          255)))))
       
       (let ((document "digraph G { graph [size=\"12!\", ratio=0.618033989]; node [style=filled]; edge [dir=none]; ~a ~a }"))
-        ;; respect activation with green/red (offensive contrast?).
+        ;; what about writing right away, and not gathering?
         (let ((propositions
                (hash-table-fold
                 (problem-propositions problem)
@@ -419,82 +422,102 @@
                   (string-join propositions)
                   (string-join constraints)))))
     
-    (define (solve! problem)
-      (define (clamp low high value)
-        (max low (min high value)))
+    (define (clamp low high value)
+      (max low (min high value)))
     
-      (define (settled? delta)
-        (zera? delta))
+    (define (cardinality integer base)
+      (loop ((for power (up-from 0))
+             (until (> (expt base power) integer))) => power))
     
-      (let ((propositions (problem-propositions problem))
-            (constraints (problem-constraints problem))
-            (time-series-data (open-output-file "oj.dat")))
-        (hash-table-walk
-         propositions
-         (lambda (name proposition)
-           (if (not (proposition-evidence? proposition))
-               (proposition-activation-set! proposition (initial-activation)))))
-        (let iterate ((iteration 0)
-                      (delta +Inf))
-          (if (or (< (abs delta) (epsilon))
-                  (> iteration (maximum-iterations)))
-              problem
-              (let ((activations
-                     (hash-table-fold
-                      propositions
-                      (lambda (name proposition activations)
-                        (let ((activation
-                               (if (proposition-evidence? proposition)
-                                   (proposition-activation proposition)
-                                   (let ((incoming-activation
-                                          (let ((constraints (hash-table-ref constraints name)))
-                                            (apply +
-                                                   (map *
-                                                        (map constraint-weight constraints)
-                                                        (map (compose proposition-activation
-                                                                      constraint-whither)
-                                                             constraints)))))
-                                         (activation (proposition-activation proposition)))
-                                     (+ (* activation (- 1 (decay)))
-                                        (* incoming-activation
-                                           (if (positive? incoming-activation)
-                                               (- (maximum-activation) activation)
-                                               (- activation (minimum-activation)))))))))
-                          (alist-cons name
-                                      (clamp (minimum-activation)
-                                             (maximum-activation)
-                                             activation)
-                                      activations)))
-                      '())))
-                (display (string-join
-                          (map
-                           (compose number->string proposition-activation)
-                           (hash-table-values propositions)))
-                         time-series-data)
-                (newline time-series-data)
-                ;; do we need this read step, or can we simply update and take
-                ;; the delta? let's update and take the delta. no; unless we
-                ;; mutate, we need to read the delta.
-                (let ((delta
-                       (apply +
-                              (map (match-lambda
-                                       ((name . activation)
-                                        (- activation
-                                           (proposition-activation
-                                            (hash-table-ref propositions name)))))
-                                   activations)))) 
-                  (for-each (match-lambda
-                                ((name . activation)
-                                 (hash-table-update! propositions
-                                                     name
-                                                     (lambda (proposition)
-                                                       (proposition-activation-set!
-                                                        proposition
-                                                        activation)
-                                                       proposition))))
-                            activations)
-                  (iterate (add1 iteration)
-                           delta)))))))
+    (define solve!
+      (case-lambda
+       (() (solve! (current-problem)))
+       ((problem)
+        (let ((propositions (problem-propositions problem))
+              (constraints (problem-constraints problem))
+              (time-series-data (open-output-file "oj.dat"))
+              (temp-dir (mkdtemp "/tmp/XXXXXX"))
+              (temp-digits (cardinality (maximum-iterations) 10))
+              (animation "oj.gif"))
+          (hash-table-walk
+           propositions
+           (lambda (name proposition)
+             (if (not (proposition-evidence? proposition))
+                 (proposition-activation-set! proposition (initial-activation)))))
+          (let iterate ((iteration 0)
+                        (delta +Inf))
+            (if (or (< (abs delta) (epsilon))
+                    (> iteration (maximum-iterations)))
+                (begin
+                  (run (convert "$(" find ,temp-dir -name \'*.png\' \| sort && find ,temp-dir -name \'*.png\' \| sort -r ")" ,animation))
+                  problem)
+                (let ((activations
+                       (hash-table-fold
+                        propositions
+                        (lambda (name proposition activations)
+                          (let ((activation
+                                 (if (proposition-evidence? proposition)
+                                     (proposition-activation proposition)
+                                     (let ((incoming-activation
+                                            (let ((constraints (hash-table-ref constraints name)))
+                                              (apply +
+                                                     (map *
+                                                          (map constraint-weight constraints)
+                                                          (map (compose proposition-activation
+                                                                        constraint-whither)
+                                                               constraints)))))
+                                           (activation (proposition-activation proposition)))
+                                       (+ (* activation (- 1 (decay)))
+                                          (* incoming-activation
+                                             (if (positive? incoming-activation)
+                                                 (- (maximum-activation) activation)
+                                                 (- activation (minimum-activation)))))))))
+                            (alist-cons name
+                                        (clamp (minimum-activation)
+                                               (maximum-activation)
+                                               activation)
+                                        activations)))
+                        '())))
+                  (display (string-join
+                            (map
+                             (compose number->string proposition-activation)
+                             (hash-table-values propositions)))
+                           time-series-data)
+                  (newline time-series-data)
+                  ;; do we need this read step, or can we simply update and take
+                  ;; the delta? let's update and take the delta. no; unless we
+                  ;; mutate, we need to read the delta.
+                  (let ((delta
+                         (apply +
+                                (map (match-lambda
+                                         ((name . activation)
+                                          (- activation
+                                             (proposition-activation
+                                              (hash-table-ref propositions name)))))
+                                     activations)))) 
+                    (for-each (match-lambda
+                                  ((name . activation)
+                                   (hash-table-update! propositions
+                                                       name
+                                                       (lambda (proposition)
+                                                         (proposition-activation-set!
+                                                          proposition
+                                                          activation)
+                                                         proposition))))
+                              activations)
+                    (let*-values (((output-template)
+                                   (format "~~~a,48d.png" temp-digits))
+                                  ((in out id)
+                                   (process "dot" `("-Tpng" "-o"
+                                                    ,(make-pathname temp-dir
+                                                                    (format output-template iteration))))))
+                      (close-input-port in)
+                      (with-output-to-port
+                          out
+                        (lambda () (display-problem/dot problem)))
+                      (close-output-port out))
+                    (iterate (add1 iteration)
+                             delta)))))))))
     
     (let ((oj (make-problem)))
       (with-problem
@@ -674,11 +697,18 @@
 
   how to visualize $t$: time series?
 
-  #+BEGIN_SRC gnuplot :tangle oj.gp :shebange #!/usr/bin/env gnuplote
+  #+BEGIN_SRC gnuplot :tangle oj.gp :shebang #!/usr/bin/env gnuplot
     plot "oj.dat" using 1 with lines, \
          "oj.dat" using 2 with lines, \
          "oj.dat" using 3 with lines, \
          "oj.dat" using 4 with lines, \
          "oj.dat" using 5 with lines
     
+  #+END_SRC
+
+  #+BEGIN_SRC scheme :tangle test-mkdtemp.scm :shebang #!/usr/bin/env chicken-scheme
+    (use debug)
+    (import foreign)
+    (foreign-declare "#include <stdlib.h>")
+    (debug ((foreign-lambda c-string "mkdtemp" c-string) "/tmp/XXXXXX"))
   #+END_SRC

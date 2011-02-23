@@ -285,8 +285,9 @@
       post-process:
       (lambda (problem)
         (let ((propositions (problem-propositions problem))
-              (document "set term pngcairo size 1024,768 font \",8\" enhanced crop; set output \"~a\"; plot ~a
-"))
+              (document "set term pngcairo size 1024,768 font \",8\" enhanced crop;
+                         set output \"~a\";
+                         plot ~a~%"))
           (let ((elements
                  (loop ((for name (in-list (hash-table-keys propositions)))
                         (for proposition
@@ -317,19 +318,23 @@
    (lambda (problem)
      (let ((propositions (problem-propositions problem))
            (constraints (problem-constraints problem)))
+       (for-each (lambda (processor)
+                   ((processor-pre-process processor) problem))
+                 processors)
        (hash-table-walk
         propositions
         (lambda (name proposition)
           (if (not (proposition-evidence? proposition))
               (proposition-activation-set! proposition (initial-activation)))))
-       (for-each (lambda (processor)
-                   ((processor-pre-process processor) problem))
-                 processors)
        (let iterate ((iteration 0)
                      (delta +Inf))
          (if (or (< (abs delta) (epsilon))
                  (> iteration (maximum-iterations)))
              (begin
+               ;; one last normal processing at t_n
+               (for-each (lambda (processor)
+                           ((processor-process processor) problem iteration))
+                         processors)
                (for-each (lambda (processor)
                            ((processor-post-process processor) problem))
                          processors)
@@ -361,6 +366,9 @@
                                             activation)
                                      activations)))
                      '()))) 
+               (for-each (lambda (processor)
+                           ((processor-process processor) problem iteration))
+                         processors)
                ;; do we need this read step, or can we simply update and take
                ;; the delta? let's update and take the delta. no; unless we
                ;; mutate, we need to read the delta.
@@ -382,8 +390,5 @@
                                                        activation)
                                                       proposition))))
                            activations)
-                 (for-each (lambda (processor)
-                             ((processor-process processor) problem iteration))
-                           processors)
                  (iterate (add1 iteration)
                           delta)))))))))

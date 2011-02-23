@@ -8,5 +8,6 @@
         autocompile)
  (author "Peter Danenberg")
  (synopsis "Implementing Thagard's connectionist coherence-problem-solver")
- (files "influence.scm"
-        "influence.setup"))
+ (files "influence.setup"
+        "influence.scm"
+        "connectionist.scm"))

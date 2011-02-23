@@ -544,6 +544,8 @@
                      fuhrman-lied
                      edta-on-sock)
                    'the-lapd-framed-oj)
+         (explain! '(nicole-and-ron-were-killed)
+                   'drug-dealers-killed-nicole)
     
          (contradict! '(drug-dealers-killed-nicole
                         the-lapd-framed-oj)

@@ -1,0 +1,12 @@
+((egg "influence.egg")
+ (needs setup-helper
+        defstruct
+        matchable
+        format
+        foof-loop
+        shell
+        autocompile)
+ (author "Peter Danenberg")
+ (synopsis "Implementing Thagard's connectionist coherence-problem-solver")
+ (files "influence.scm"
+        "influence.setup"))

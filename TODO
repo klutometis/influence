@@ -1,10 +1,12 @@
 # -*- org -*-
-* TODO connectionist
+* DONE connectionist
+  CLOSED: [2011-02-23 Wed 01:41]
 # <<connectionist>>
   since $a_j(t + 1)$ depends on $a_j(t)$, we should calculate $t + 1$
   and then update the graph atomically: we can't let the $t + 1$
   contaminate $t$.
-* TODO input specification
+* DONE input specification
+  CLOSED: [2011-02-23 Wed 01:41]
   can we just do something like this:
   
   #+BEGIN_SRC scheme
@@ -91,7 +93,7 @@
   what about joshua bloch's idea about starting with the API first?
   (see seibel's book.) hmm.
 
-  #+BEGIN_SRC scheme :tangle influence.scm
+  #+BEGIN_SRC scheme :tangle test-influence-module.scm
     (module
      influence
      *
@@ -335,7 +337,7 @@
   #+END_QUOTE
 
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
-    (include "influence.scm")
+    (include "test-influence-module.scm")
     (import files influence)
     (use debug
          srfi-1

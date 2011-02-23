@@ -1,0 +1,7 @@
+(include "setup-helper")
+
+(verify-extension-name "influence")
+
+(setup-shared-extension-module
+ 'influence
+ (extension-version 0.1))

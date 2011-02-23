@@ -337,7 +337,13 @@
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
     (include "influence.scm")
     (import foreign influence)
-    (use debug srfi-1 matchable format posix foof-loop shell)
+    (use debug
+         srfi-1
+         matchable
+         format
+         posix
+         foof-loop
+         shell)
     
     (foreign-declare "#include <stdlib.h>")
     (define mkdtemp (foreign-lambda c-string "mkdtemp" c-string))
@@ -449,7 +455,7 @@
             (if (or (< (abs delta) (epsilon))
                     (> iteration (maximum-iterations)))
                 (begin
-                  (run (convert "$(" find ,temp-dir -name \'*.png\' \| sort && find ,temp-dir -name \'*.png\' \| sort -r ")" ,animation))
+                  (run (convert "$(" find ,temp-dir -name \'*.gif\' \| sort && find ,temp-dir -name \'*.gif\' \| sort -r ")" -loop 0 ,animation))
                   problem)
                 (let ((activations
                        (hash-table-fold
@@ -506,11 +512,13 @@
                                                          proposition))))
                               activations)
                     (let*-values (((output-template)
-                                   (format "~~~a,48d.png" temp-digits))
+                                   (format "~~~a,48d.gif" temp-digits))
                                   ((in out id)
-                                   (process "dot" `("-Tpng" "-o"
-                                                    ,(make-pathname temp-dir
-                                                                    (format output-template iteration))))))
+                                   (process "dot" `("-Tgif"
+                                                    "-o" ,(make-pathname
+                                                           temp-dir
+                                                           (format output-template
+                                                                   iteration))))))
                       (close-input-port in)
                       (with-output-to-port
                           out

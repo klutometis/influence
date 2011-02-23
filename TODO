@@ -103,35 +103,40 @@
           matchable
           debug)
     
-     (define default-activation 0.01)
-     (define initial-activation default-activation)
-     (define maximum-activation 0.99)
-     (define minimum-activation -0.99)
+     (define default-activation (make-parameter 0.01))
+     (define maximum-activation (make-parameter 0.99))
+     (define minimum-activation (make-parameter -0.99))
     
-     (define excitatory 0.04)
-     (define inhibitory -0.06)
-     (define default-weight excitatory)
+     (define excitatory (make-parameter 0.04))
+     (define inhibitory (make-parameter -0.06))
+     (define default-weight (make-parameter (excitatory)))
     
-     (define default-description "")
+     (define default-description (make-parameter ""))
+    
+     (define (default-description? description)
+       (string=? description (default-description)))
     
      (defstruct proposition
-       (activation default-activation)
-       (description default-description)
+       name
+       (activation (default-activation))
+       (description (default-description))
        ;; propositions are trivially accepted, rejected or something
        ;; orthogonal? a default of #t is trivially optimistic.
        (accepted? #t)
        (evidence? #f))
     
      (define evidence
-       (make-proposition activation: maximum-activation
-                         description: "Evidence"
-                         evidence?: #t))
+       (make-proposition
+        name: 'evidence
+        activation: (maximum-activation)
+        description: "Evidence"
+        evidence?: #t))
     
      (define (evidence? proposition)
        (eq? evidence proposition))
     
      (defstruct constraint
-       (weight default-weight)
+       (weight (default-weight))
        whither)
     
      (defstruct problem
@@ -147,7 +152,7 @@
      (define link!
        (case-lambda
         ((problem whence whither)
-         (link! problem whence whither default-weight))
+         (link! problem whence whither (default-weight)))
         ((problem whence whither weight)
          (let* ((whither (hash-table-ref (problem-propositions problem)
                                          whither))
@@ -164,15 +169,15 @@
      (define link-symmetrically!
        (case-lambda
         ((problem whence whither)
-         (link-symmetrically! problem whence whither default-weight))
+         (link-symmetrically! problem whence whither (default-weight)))
         ((problem whence whither weight)
-         (link! problem whence whither)
-         (link! problem whither whence)))) 
+         (link! problem whence whither weight)
+         (link! problem whither whence weight)))) 
     
      (define cohere!
        (case-lambda
         ((cohaeretors cohaerendum)
-         (cohere! cohaeretors cohaerendum default-weight))
+         (cohere! cohaeretors cohaerendum (default-weight)))
         ((cohaeretors cohaerendum weight)
          (cohere! (current-problem) cohaeretors cohaerendum weight))
         ((problem cohaeretors cohaerendum weight)
@@ -195,14 +200,14 @@
         ((explanators explanandum)
          (explain! (current-problem) explanators explanandum))
         ((problem explanators explanandum)
-         (cohere! problem explanators explanandum excitatory))))
+         (cohere! problem explanators explanandum (excitatory)))))
     
      (define contradict!
        (case-lambda
         ((contradictors contradictum)
          (contradict! (current-problem) contradictors contradictum))
         ((problem contradictors contradictum)
-         (cohere! problem contradictors contradictum inhibitory))))
+         (cohere! problem contradictors contradictum (inhibitory)))))
     
      (define evidence!
        (case-lambda
@@ -214,16 +219,18 @@
      (define propose!
        (case-lambda
         ((name)
-         (propose! name default-activation))
-        ((name activation)
-         (propose! name activation default-description))
-        ((name activation description)
-         (propose! (current-problem) name activation description))
-        ((problem name activation description)
+         (propose! name (default-description)))
+        ((name description)
+         (propose! name description (default-activation)))
+        ((name description activation)
+         (propose! (current-problem) name description activation))
+        ((problem name description activation)
          (hash-table-set!
           (problem-propositions problem)
           name
-          (make-proposition activation description)))))
+          (make-proposition name: name
+                            activation: activation
+                            description: description)))))
     
      (define (with-problem problem thunk)
        (parameterize ((current-problem problem)) (thunk))))    
@@ -330,31 +337,107 @@
   #+BEGIN_SRC scheme :tangle test-oj-problem.scm :shebang #!/usr/bin/env chicken-scheme
     (include "influence.scm")
     (import influence)
-    (use debug srfi-1 matchable)
+    (use debug srfi-1 matchable format)
+    
+    (define maximum-iterations (make-parameter 5000))
+    
+    (define decay (make-parameter 0.05))
+    
+    (define epsilon (make-parameter 0.001))
+    
+    (define initial-activation (make-parameter (default-activation)))
+    
+    (define (display-problem/dot problem)
+      (define (activation->saturation activation)
+        (- 255 (inexact->exact (floor (* (/ activation (if (positive? activation)
+                                                           (maximum-activation)
+                                                           (minimum-activation)))
+                                         255)))))
+      
+      (let ((document "digraph G { graph [size=\"12!\", ratio=0.618033989]; node [style=filled]; edge [dir=none]; ~a ~a }"))
+        ;; respect activation with green/red (offensive contrast?).
+        (let ((propositions
+               (hash-table-fold
+                (problem-propositions problem)
+                (lambda (name proposition nodes)
+                  (cons
+                   (let* ((activation (proposition-activation proposition))
+                          (saturation (activation->saturation activation)))
+                     (format "\"~a\" [label=\"~a\", fillcolor=\"#~a~a~a\"];"
+                             name
+                             (let ((description
+                                    (proposition-description proposition)))
+                               (if (default-description? description)
+                                   name
+                                   #;description
+                                   name
+                                   ))
+                             (format "~2,48X" (if (negative? activation)
+                                                  255
+                                                  saturation))
+                             (format "~2,48X" (if (positive? activation)
+                                                  255
+                                                  saturation))
+                             (format "~2,48X" saturation)))
+                   nodes))
+                '()))
+              ;; respect sign and scale with dashed/solid and thickness?
+              (constraints
+               (map
+                (match-lambda
+                    ((whence whither . weight)
+                     (format "\"~a\" -> \"~a\" [style=~a];"
+                             whence
+                             whither
+                             (if (positive? weight)
+                                 "solid"
+                                 "dashed"))))
+                ;; it's damn-expensive to delete one edge in a
+                ;; bidirectional graph; we might want to consider
+                ;; switching to a unidirectional graph, simulating
+                ;; bidirectionality.
+                (delete-duplicates
+                 (hash-table-fold
+                  (problem-constraints problem)
+                  (lambda (name constraints edges)
+                    (append
+                     (map (lambda (constraint)
+                            (cons* name
+                                   (proposition-name
+                                    (constraint-whither constraint))
+                                   (constraint-weight constraint)))
+                          constraints)
+                     edges))
+                  '())
+                 (lambda (edge-a edge-b)
+                   (match-let (((a-whence a-whither . a-weight) edge-a)
+                               ((b-whence b-whither . b-weight) edge-b))
+                     (and (eq? a-whence b-whither)
+                          (eq? b-whence a-whither))))))))
+          (format #t
+                  document
+                  (string-join propositions)
+                  (string-join constraints)))))
     
     (define (solve! problem)
       (define (clamp low high value)
         (max low (min high value)))
     
-      (define decay 0.05)
-    
-      (define maximum-iterations 5000)
-    
       (define (settled? delta)
         (zera? delta))
     
       (let ((propositions (problem-propositions problem))
-            (constraints (problem-constraints problem)))
+            (constraints (problem-constraints problem))
+            (time-series-data (open-output-file "oj.dat")))
         (hash-table-walk
          propositions
          (lambda (name proposition)
            (if (not (proposition-evidence? proposition))
-               (proposition-activation-set! proposition default-activation))))
+               (proposition-activation-set! proposition (initial-activation)))))
         (let iterate ((iteration 0)
                       (delta +Inf))
-          (debug iteration delta)
-          (if (or (zero? delta)
-                  (> iteration maximum-iterations))
+          (if (or (< (abs delta) (epsilon))
+                  (> iteration (maximum-iterations)))
               problem
               (let ((activations
                      (hash-table-fold
@@ -364,22 +447,31 @@
                                (if (proposition-evidence? proposition)
                                    (proposition-activation proposition)
                                    (let ((incoming-activation
-                                          (apply + (map (compose proposition-activation
-                                                                 constraint-whither)
-                                                        (hash-table-ref constraints
-                                                                        name))))
+                                          (let ((constraints (hash-table-ref constraints name)))
+                                            (apply +
+                                                   (map *
+                                                        (map constraint-weight constraints)
+                                                        (map (compose proposition-activation
+                                                                      constraint-whither)
+                                                             constraints)))))
                                          (activation (proposition-activation proposition)))
-                                     (+ (* activation (- 1 decay))
+                                     (+ (* activation (- 1 (decay)))
                                         (* incoming-activation
                                            (if (positive? incoming-activation)
-                                               (- maximum-activation activation)
-                                               (- activation minimum-activation))))))))
+                                               (- (maximum-activation) activation)
+                                               (- activation (minimum-activation)))))))))
                           (alist-cons name
-                                      (clamp minimum-activation
-                                             maximum-activation
+                                      (clamp (minimum-activation)
+                                             (maximum-activation)
                                              activation)
                                       activations)))
                       '())))
+                (display (string-join
+                          (map
+                           (compose number->string proposition-activation)
+                           (hash-table-values propositions)))
+                         time-series-data)
+                (newline time-series-data)
                 ;; do we need this read step, or can we simply update and take
                 ;; the delta? let's update and take the delta. no; unless we
                 ;; mutate, we need to read the delta.
@@ -443,7 +535,76 @@
                       fuhrman-lied
                       edta-on-sock)) 
     
-         (debug (solve! oj)))))
+         (display-problem/dot (solve! oj)))))
+    
+    #;
+    (with-problem
+     (make-problem)
+     (lambda ()
+       (propose! 'e1)
+       (propose! 'e2)
+       (propose! 'e3)
+       (propose! 'e4)
+    
+       (explain! '(e3 e4) 'e1)
+       (explain! '(e4) 'e2)
+    
+       (contradict! '(e1) 'e2)
+    
+       (evidence! '(e1))
+    
+       (display-problem/dot (solve! (current-problem)))))
+    
+    #;
+     (with-problem
+      (make-problem)
+      (lambda ()
+        (propose! 'E1 "In combustion, heat and light are given off.")
+        (propose! 'E2 "Inflammability is transmittable from one body to another.")
+        (propose! 'E3 "Combustion only occurs in the presence of pure air.")
+        (propose! 'E4 "Increase in weight of a burned body is exactly equal to weight of air absorbed. ")
+        (propose! 'E5 "Metals undergo calcination.")
+        (propose! 'E6 "In calcination, bodies increase weight.")
+        (propose! 'E7 "In calcination, volume of air diminishes.") ; 628
+        (propose! 'E8 "In reduction, effervescence appears.")      ; 628
+    
+        (propose! 'OH1 "Pure air contains oxygen principle.") ; 625
+        (propose! 'OH2 "Pure air contains matter of fire and heat (MFH).") ;
+        (propose! 'OH3 "In combustion, oxygen from the air combines with the burning body.")
+        (propose! 'OH4 "Oxygen has weight.")
+        (propose! 'OH5 "In calcination, metals add oxygen to become calxes. ")
+        (propose! 'OH6 "In reduction, oxygen is given off.") ; 628
+    
+        (propose! 'PH1 "Combustible bodies contain phlogiston.")    ; 624
+        (propose! 'PH2 "Combustible bodies contain matter of heat.") ; 652
+        (propose! 'PH3 "In combustion, phlogiston is given off.")    ; 624
+        (propose! 'PH4 "Phlogiston can pass from one body to another.") ; 625
+        (propose! 'PH5 "Metals contain phlogiston.")              ; 624
+        (propose! 'PH6 "In calcination, phlogiston is given off.") ; 624
+    
+                                            ; Contradictions:
+    
+        (contradict! '(PH3) 'OH3)
+        (contradict! '(PH6) 'OH5)           ; 652
+    
+                                            ; Oxygen explanations:
+        (explain! '(OH1 OH2 OH3) 'E1)
+                                            ; E2?
+        (explain! '(OH1 OH3) 'E3)
+        (explain! '(OH1 OH3 OH4) 'E4)
+        (explain! '(OH1 OH5) 'E5)
+        (explain! '(OH1 OH4 OH5) 'E6)
+        (explain! '(OH1 OH5) 'E7)
+        (explain! '(OH1 OH6) 'E8)
+    
+                                            ; Phlogiston explanations:
+        (explain! '(PH1 PH2 PH3) 'E1)
+        (explain! '(PH1 PH3 PH4) 'E2)
+        (explain! '(PH5 PH6) 'E5)
+    
+        (evidence! '(E1 E2 E3 E4 E5 E6 E7 E8))
+    
+        (display-problem/dot (solve! (current-problem)))))
     
   #+END_SRC
 
@@ -512,3 +673,12 @@
   #+END_SRC
 
   how to visualize $t$: time series?
+
+  #+BEGIN_SRC gnuplot :tangle oj.gp :shebange #!/usr/bin/env gnuplote
+    plot "oj.dat" using 1 with lines, \
+         "oj.dat" using 2 with lines, \
+         "oj.dat" using 3 with lines, \
+         "oj.dat" using 4 with lines, \
+         "oj.dat" using 5 with lines
+    
+  #+END_SRC

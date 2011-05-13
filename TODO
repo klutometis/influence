@@ -784,3 +784,192 @@
     (foreign-declare "#include <stdlib.h>")
     (debug ((foreign-lambda c-string "mkdtemp" c-string) "/tmp/XXXXXX"))
   #+END_SRC
+* \protect\citetitle{maathius:2009}
+  - Pearl: "an associational concept is any relationship that can be
+    defined in termes of a joint distribution of observed variables,
+    and a causal concept is any relationship that cannot be defined
+    from the distribution alone. . . . Every claim invoking causal
+    concepts must be trade to some premises that invoke such concepts;
+    it cannot be inferred or derived from statistical associations
+    alone."
+  - a DAG is typically not identifiable from observational data,
+    because conditional dependencies only determine the skeleton and
+    the so-called v-structures of the graph.
+  - a CPDAG can be estimated in various ways, including the
+    PC-algorithm (Spirtes, P., Glymour, C. and Scheines,
+    R. (2000). Causation, Prediction, and Search, 2nd ed. MIT Press,
+    Cambridge, MA), search and score methods (Chickering,
+    D. M. (2002). Learning equivalence classes of Bayesian-network
+    structures. J. Mach. Learn. Res. 2 445–498, Chickering,
+    D. M. (2003). Optimal structure identification with greedy
+    search. J. Mach. Learn. Res. 3 507–554, Chow, C. and Liu,
+    C. (1968). Approximating discrete probability distributions with
+    dependence trees. IEEE Trans. Inform. Theory 14 462–467) and
+    Bayesian methods (Heckerman, D., Geiger, D. and Chickering,
+    D. (1995). Learning Bayesian networks: The combination of
+    knowledge and statistical data. J. Mach. Learn. Res. 20 197–243,
+    Spiegelhalter, D. J., Dawid, A. P., Lauritzen, S. L. and Cowell,
+    R. G. (1993). Bayesian analysis in expert systems. Statist. Sci. 8
+    219–283).
+* \protect\citetitle{kalisch:2007}
+  - R.E. Neapolitan. Learning Bayesian Networks. Pearson Prenctice
+    Hall, 2004.
+* \protect\citetitle{spirtes:2000}
+  - we should like an algorithm that has the same input/output
+    relations as the SGS procedure for faithful distributions but
+    which for sparse graphs does not require the testing of higher
+    order independence relations in the discrete case, and in any case
+    requires testing as few d-separation relations as possible. the
+    following procedure (spirtes, glymour and scheines 1991) starts by
+    forming the complete undirected graph, then "thins" that graph by
+    removing edges with zero order conditional indepedence relations,
+    thins again with first order conditional independence relations,
+    and so on. the set of variables conditioned on need only be a
+    subset of the set of variables adjacent to one or the other of the
+    variables conditioned.
+* \protect\citetitle{spirtes:1991}
+  - finding causal relations between variables is necessary . . . for
+    these purposes, it is insufficient to merely fit an empirical
+    covariance matrix or find the best least squares linear estimator
+    of a variable.
+    - Spirtes and Clark Glymour, Department of Philosophy, CMU; btw.
+    - we'd essentially be discovering a causal network upon which to
+      thagardize?
+  - we will represent the direct causal dependence of one variable on
+    another by a directed edge from a vertex representing the causal
+    variable to a vertex representing the effect variable.
+    - what about the skeleton sans causal inference: covariance
+      matrix?
+  - social scientist . . . must therefore restrict the space of
+    alternatives: 1) experimental controls, 2) prior knowledge, 3)
+    features of the sample data.
+  - there is no evidence that such appeals constitute a reliable
+    discovery procedure.
+  - "substantive knowledge" rather than sample data should determine
+    the causal structure of a model.
+  - among the assumptions made by factor analytics programs is that
+    the data functional dependencies between variables are linear, and
+    that no measured variable directly causes either measured or
+    latent variables . . . they are not essential to inferring causal
+    structure from sample data.
+  - . . . provide reliable procedures for using sample data to
+    usefully narrow the class of causal structures that are, a priori,
+    possible for the data.
+  - pairs (g, P) for which g is a DAG and P is a probability
+    distribution on the vertices of g such that 1) for every vertex v
+    and set S_v of vertices that are not descendants or parents of v,
+    v and S_v are independent conditional on the parents of v; and 2)
+    every independence relation in P is a consequence of the
+    independence relations in 1). pairs satisfying these conditions
+    can be viewed as causal structures in which the causal
+    dependencies generate statistical dependencies.
+    - "not descendants or parents": siblings, if connected;
+      orthogonal, if not.
+  - when the set of measured variables for which probabilities are
+    provided in the data is such that every common cause fo a measured
+    variable is itself measured, we say the structure is causally
+    sufficient.
+    - how are the probabilities provided? "in the data".
+    - ". . . every common cause of a measured variables is itself
+      measured . . ."
+  - recovery problem occur when determining g, or features of g, from
+    the distribution P or from samples obtained from P.
+    - ah, P and samples obtained (from a possibly unknown?) P are
+      distinct.
+  - SGS algorithm (Spirtes, et al. 1990. Causality from probability.):
+    1. start with complete undirected graph
+    2. for each vertex pair (a, b), remove the undirected edge between
+       a anb b iff I(a, S, b) for some subset S not containing a or
+       b. call this undirected graph G.
+    3. for each triple (a, b, c) such that a and b are adjacent in G,
+       b and c are adjacent in G, and a and c are not adjacent in G,
+       direct the edges a-b and b-c into b iff for ever set S of
+       vertices containing b but not a or c, ~I(a, S, C).
+       - `~' signifies `not'?
+    4. output all orientations of the graph consistent with 2.
+       - for coming up with a skeleton, therefore, it suffices to
+         eliminate edges with conditional independence? how to
+         establish conditional independence: learn the conditional
+         probabilities given a dataset?
+* \protect\citetitle{verma:1990}
+  - relationship between dags and dependence: given a -> b -> c, the
+    parameters required are P(a), P(b|a), P(c|b); "required":
+    requiring estimations.
+  - P(a)P(b|a) = P(ab) = P(b)P(b|a) [P(a)P(b|a) = P(ab) because of
+    compounding probabilities]
+  - given {a, c} -> b: P(a), P(c), P(b|ac) [P(b|ac) = P(b|a) +
+    P(b|c)?]
+    - joint probability: conjunctive, multiplicative; marginal
+      (unconditional): integrating (summing) the joint probabilities
+      over all the outcomes of X: P(A) = P(AB) + P(AB'), etc.
+    - prior probability: P(A|I), probability of A given initial
+      information I; conditioning of probabilities: updating them to
+      take account of (possibly new) information (Bayes' theorem).
+    - conditional probability: probability of C under the condition
+      that A is observed; P(C|A): "probability of C given A."
+    - statistically independent: P(B|A) = P(B).
+    - P(C|A) = P(AC) / P(A); P(AC) = P(C|A)P(A).
+    - statistically independent: P(B) = P(B|A) = P(AB)/P(A);
+      i.e. P(A)P(B) = P(AB).
+    - Bayes' theorem: P(B|A) = P(A|B) * P(B) / P(A); P(A)P(B|A) =
+      P(A|B)P(B); P(A|B) ~= P(B|A) iff P(A) ~= P(B).
+  - I(a, b, c): "a is independent of c given b"; vs. I(a, nil, c): "a
+    is marginally (unconditionally) independent of c".
+  - the statistical meaning of any causal model can be described
+    completely and economically by its *stratified protocol*, which is
+    a list of independence statements, each asserting that a variable
+    is independent of its non-descendants, given its parents.
+    - produce dags negatively: by removing links based on
+      independence?
+  - furthermore, any independence statement that logically folows from
+    the statified protocol can be graphically determined in linear
+    time via the *d-separation* criterion (geiger, 89, 90)
+    - uh, oh: time to learn d-separation
+    - geiger, verma, pearl. 1989. d-separation: from theorems to
+      algorithms.
+    - geiger, pearl. 1990. logical and algorithmic properties of
+      independence and their application to bayesion networks.
+    - [[http://www.andrew.cmu.edu/user/scheines/tutor/d-sep.html][d-separation]]
+      - can we specify an algorithm that will compute, for any
+        directed graph interpreted as a linear statistical model, all
+        and only those independence and conditional independence
+        relations that hold for all values of the parameters (causal
+        strengths)?
+      - Pearl realized that uncertain information could be stored much
+        more efficiently by taking advantage of conditional
+        independence, and they used DAGs to encode probabilities and
+        the conditional independence relations among them.
+      - D-separation was the algorithm they invented to computed all
+        the conditional independence relations entailed by their
+        graphs.
+        - Pearl, J. (1988). Probabilistic Reasoning in Intelligent
+          Systems. Morgan and Kaufman, San Mateo.
+      - 
+  - the question of equivalence of caulas models reduces to the
+    question of equivalence of protocols: two dags are equevalent iff
+    each dag's protocol holds in the other.
+  - it is difficult to process visually and it does not generalize to
+    embedded causal models.
+  - embedded causal models are useful for modeling theories that
+    cannot be modeled via simple dags . . . if there are unobserved
+    variables which cause spurious correlations between the observable
+    variables it may be necessary to embed the observables in a larger
+    dag containing "hidden" variables in order to build an accurate
+    model.
+  - it might be desirable to embed the model in a larger dag to
+    satisfy some high level constraints. . . suppose that every causal
+    model that fits a given set of data contains the link a -> b, but
+    b is known to precede a. . . one way of avoiding this conflict is
+    to hypothesize the existence of an unknown common cause, i.e. a <-
+    α -> b.
+  - unlink simple causal models, the statistical meaning of an
+    embedded causal model cannot be completely characterized by
+    dependency information alone; two dependency-equivalent causal
+    models need not be equivalent in the general sense.
+  - dependency equivalence is a tight enough necessary condition for
+    equivalence that it permits many sound conclusions to be derived
+    by graphical means.
+  - previous two sections are applied to the problem of recovery of a
+    causal model from statistical data.
+  - 
+#+BIBLIOGRAPHY: TODO jurabib

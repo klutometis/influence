@@ -944,7 +944,7 @@
         graphs.
         - Pearl, J. (1988). Probabilistic Reasoning in Intelligent
           Systems. Morgan and Kaufman, San Mateo.
-      - 
+      -   
   - the question of equivalence of caulas models reduces to the
     question of equivalence of protocols: two dags are equevalent iff
     each dag's protocol holds in the other.

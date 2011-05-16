@@ -891,6 +891,47 @@
          eliminate edges with conditional independence? how to
          establish conditional independence: learn the conditional
          probabilities given a dataset?
+  - The module of Tetrad II that implements the SGS algorithm takes a
+    covariance matrix and any background causal information that the
+    user has as input, and outputs a set of causal graphs compatible
+    with the background knowledge that explain the conditional
+    independencies true of the covariance matrix.
+    - we need to get the covariance matrix; how to get from there to
+      conditional independence?
+    - once we establish conditional independence (the rub), the rest
+      is tractable.
+  - Using a joint normal distribution on the variables of zero
+    indegree, three sets of simulated data were generated, each with a
+    sample size of 20,000. The covariance matrix and sample size were
+    given to a version of the Tetrad II program with an implementa-
+    tion of the Pc algorithm.
+* Fung, R., Crawford, S. (1990). Constructor: A system for the induction of probabilistic models. In Proceedings of the American Association for Artificial Intelligence (pp. 762-769). Boston.
+  - Competes with Spirtes, 1991.
+* Drton, et al. Smoothness of Gaussian Conditional Independence Models
+  - Steffen L. Lauritzen, Graphical models, Oxford Statistical Science
+    Series, vol. 17, The Claren- don Press Oxford University Press,
+    New York, 1996, Oxford Science Publications. MR1419991 (98g:62001)
+  - Conditional independence (CI) is one of the most important notions
+    of multi- variate statistical modelling. Many popular statistical
+    models can be thought of as being defined in terms of CI
+    constraints. For instance, the popular graphical models are
+    obtained by identifying a considered set of random variables with
+    the nodes of a graph and converting separation relations in the
+    graph into CI statements [9]. Despite the use of different graphs
+    and separation criteria, graphical models present only a small
+    subset of the models that can be defined using conditional
+    independence [18]. It is thus of interest to explore to which
+    extent more general collections of CI constraints may furnish
+    other well-behaved statistical models.
+* [[http://en.wikipedia.org/wiki/Conditional_independence][Conditional independence]]
+* [[http://people.cs.ubc.ca/~murphyk/Bayes/bnintro.html][Graphical models]]
+* [[http://en.wikipedia.org/wiki/Independence_(probability_theory)][Independence]]
+  - If X and Y are independent, then the expectation operator E has
+    the property E[XY] = E[X]E[Y], and for the variance we have
+    var(X + Y) = var(X) + var(Y), so the covariance cov(X, Y) is
+    zero. (The converse of these, i.e. the proposition that if two
+    random variables have a covariance of 0 they must be independent,
+    is not true. See uncorrelated.)
 * \protect\citetitle{verma:1990}
   - relationship between dags and dependence: given a -> b -> c, the
     parameters required are P(a), P(b|a), P(c|b); "required":
@@ -939,7 +980,7 @@
         more efficiently by taking advantage of conditional
         independence, and they used DAGs to encode probabilities and
         the conditional independence relations among them.
-      - D-separation was the algorithm they invented to computed all
+      - D-separation was the algorithm they invented to compute all
         the conditional independence relations entailed by their
         graphs.
         - Pearl, J. (1988). Probabilistic Reasoning in Intelligent
@@ -1029,6 +1070,52 @@
   - A_{ab}: ancestors of a and b (less a and b); P_{ab}: parents
   - pearl is starting to use activation without defining it, I think;
     but activation is similar to reachability, isn't it?
+  - the head-to-head node
+    - "head-to-head": collider; "Graphically, we say that node c is
+      `head-to-head' with respect to the path from a to b because it
+      connects to the heads of the two arrows."  ([[http://www.bcs.rochester.edu/people/robbie/jacobslab/cheat_sheet/conditional_ind.pdf][conditional
+      independence]])
+  - adjacency is a property determined solely by d-separation, hence
+    remains invariant among equivalent dags.
+  - another important invariant: directionality of the uncoupled
+    head-to-head links (a -> b <- c are uncoupled if a and c are not
+    adjacent).
+    - jesus: everytime he mentions a node, keep in mind that he might
+      be referring to the null set.
+  - lemma 2: *if a, c, b form acb while a and b are d-separated by
+    some set S but not Sc then a -> c <- b. furthermore, if a -> c <-
+    b, then a and b are unseparable by any set containing c.*
+  - head-to-head vs. tail-to-tail and head-to-tail
+  - directionality of a certain class of links can be determined from
+    d-separation alone.
+  - inferring causal relationships from independence statements
+  - theorem 1: *two dags are equivalent iff they have the same links and same
+    uncoupled head-to-head nodes*
+  - the equivalence of two causal models can be determined by a simple
+    graphical criterion
+  - partially directed graph: rudimentary pattern of the causal model
+  - rudimentary pattern define solely in terms of d-separation:
+    equivalence class of causal models has a unique pattern.
+  - any extension of either pattern into a full dag that does not
+    create new uncoupled head-to-head nodes will be a dag in the
+    equivalence class.
+  - completed pattern: directed as constrained
+  - emdedded causal models: direct non-causal correlation between two
+    variables.
+  - in a simple dag, whenever two variables are unseparable
+    . . . there is no way to represet the exstence fo an unknown
+    common cause.
+  - no arrow head can be added to the pattern that would 1) create a
+    new uncoupled head-to-head node or 2) create a strictly directed
+    cycle.
+  - defines a unique pattern for every embedded dag, it does so in
+    terms of d-separation conditions over subsets all of U_O, which
+    might require an exponential number of tests.
+  - next two lemmas: polynomial time
+  - lemma 3: relationship between adjacency in the pattern and
+    unseparability in the causal model; practical criterion for
+    determining separability in terms of a simple d-separation test
+    and a graphical test.
   - under the assumption that the observed distribution is dag
     isomorphic, theorem 1 permits the recovery of the underlying
     structure uniquely, modulo the equivalence class defined by its
@@ -1039,6 +1126,26 @@
       contend with: causality from proabability (let's start there);
       and algorithm for fast recovery of sparse causal graphs (which
       kalisch, et al used, I believe (PC vs. SGS algorithms)).
+  - input: P a sampled distribution
+    - i.e. took samples of some (possibly theoretical) distribution.
+* [[http://www.cs.ucla.edu/~ethan/documents/dseparation.pdf][d-separation]]
+  - relatively subtle; but this document is great.
+  - given two sets of variables A and B, we test if they are
+    independent conditioned on a set Z of variables by checking all
+    paths between each variable in A and each variably in B.
+  - we say thet A is independent of B given Z I(A, Z, B) if all paths
+    between each variable in A and B are closed when we condition on
+    (or in other words observe) Z.
+  - if any path is open, we cannot claim independence but also cannot
+    claim dependence.
+  - we would have to examine the conditional probability tables to
+    verify the indepedence claims if there is no d-separation.
+  - a path is closed if there is any sequence of vertices and edges on
+    it that are close according to: etc.
+    - "given": "having observed".
+    - still, a bizarre bidirectionality implying necessary and
+      sufficient causation (especially when conditioning on
+      e.g. descendents of convergent paths).
 * http://en.wikipedia.org/wiki/Causality
   - conditional statement are not statements of causality; an
     important distinction is that statements of causality require the

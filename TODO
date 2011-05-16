@@ -944,7 +944,57 @@
         graphs.
         - Pearl, J. (1988). Probabilistic Reasoning in Intelligent
           Systems. Morgan and Kaufman, San Mateo.
-      -   
+      - d in d-separation and d-connection stands for dependence; if
+        two variables are d-separated relative to a set of variables Z
+        in a directed graph, then they are independent conditional on
+        Z in all probability distributions such a graph can represent
+        - how to find the distribution?
+      - X and Y are independent conditional on Z if knowledge about X
+        gives you no extra information about Y once you have knowledge
+        of Z
+      - path is active if it carries information, or dependence
+      - X and Y are d-separated if all the paths that connect tham are
+        inactive; X and Y are connected if any of the paths between
+        them are active
+        - active: connected, but reachable via directionality?
+      - a path is active when every vertex on the path is active
+      - paths and vertices on these paths are active or inactive
+        relative to a set of other vertices Z.
+      - A -> C <- B: A and B have a common effect in C, but no causal
+        connection between them (think back to the Pearl paper);
+        whereas: A -> C -> B; A <- C <- B; A <- C -> B: these are
+        "empirically indistinguishable, hence, equally predictive";
+        I(A, C, B) vs. I(A, null, B); etc.
+      - when the conditioning set is empty, non-colliders are active;
+        when the conditioning set is empty, colliders are inactive.
+      - when Z is empty, the question of whether X and Y are
+        d-separated by Z in G: are there any paths between X and Y
+        that have no colliders?
+        - when Z is non-empty? Also, I need to come up with the
+          god-damn graph. A totally connected,, bidirectional graph to
+          start out with?
+      - whereas conditioning on a collider activates it, so does
+        conditioning on any of it's descendants.
+        - have to understand the conditioning set:
+      - independent causes are made dependent by conditioning on a
+        common effect (conditioning on a collider)
+        - conditioning: currying the variables; (partially)
+          determining random variables, and thus allowing deduction on
+          their dependent variables? a -> c <- b: a, c; therefore
+          b. Weird, though, because given a -> c and b -> c: a, c; we
+          can't say anything about b, can we? But with this
+          probabilistic thing, there's P(a), P(b), P(c|ab). Since
+          they're causal, though, should we interpret them as
+          necessary and sufficient, and therefore an iff-relation?
+        - people distinguish between sufficient and necessary
+          causation, though.
+      - if G is a connected graph in which X, Y, Z are disjoint; X and
+        Y are d-connected by Z in G iff there exists an undirected
+        path U between some vertex in X and some vertex in Y such that
+        for evey collider C on U, either C or a descendent of C is in
+        Z and no non-collider on U is in Z.
+      - X and Y are d-separated by Z in G iff they are not d-connected
+        by Z in G.
   - the question of equivalence of caulas models reduces to the
     question of equivalence of protocols: two dags are equevalent iff
     each dag's protocol holds in the other.
@@ -971,5 +1021,36 @@
     by graphical means.
   - previous two sections are applied to the problem of recovery of a
     causal model from statistical data.
-  - 
+  - canonical representation called a *pattern* for describing the
+    class of all models equivalent to a given dag.
+  - two DAGs that represent equivalent causal models must have the
+    same adjacency structure
+  - adjacency, unseparability; separability and d-separation
+  - A_{ab}: ancestors of a and b (less a and b); P_{ab}: parents
+  - pearl is starting to use activation without defining it, I think;
+    but activation is similar to reachability, isn't it?
+  - under the assumption that the observed distribution is dag
+    isomorphic, theorem 1 permits the recovery of the underlying
+    structure uniquely, modulo the equivalence class defined by its
+    pattern. one such recovery algorithm is proposed by Spirtes et al
+    90 and several alternatives are discussed in the sequel.
+    - spirtes, glymour and scheines. 1990. causality from probability.
+    - should skip straight to the Spirtes? there's also two Spirtes to
+      contend with: causality from proabability (let's start there);
+      and algorithm for fast recovery of sparse causal graphs (which
+      kalisch, et al used, I believe (PC vs. SGS algorithms)).
+* http://en.wikipedia.org/wiki/Causality
+  - conditional statement are not statements of causality; an
+    important distinction is that statements of causality require the
+    antecedent to precede or coincide with the consequent in time,
+    whereas conditional statements do not require this order.
+    - in other words, we're not guaranteed necessity and sufficiency
+      with causation.
+* \protect\citetitle{verma:1990}
+  - the use of a DAG both to represent probabilistic relations among
+    random variables on the one hand and causal relations on the other
+    . . . Reichenbach's "principle of common cause": if variables
+    correlated, either one causes the other or they both share a third
+    common cause
+    - referring to this thagard-pearl equivocation?
 #+BIBLIOGRAPHY: TODO jurabib

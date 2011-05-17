@@ -784,6 +784,631 @@
     (foreign-declare "#include <stdlib.h>")
     (debug ((foreign-lambda c-string "mkdtemp" c-string) "/tmp/XXXXXX"))
   #+END_SRC
+* [[http://en.wikipedia.org/wiki/Markov_blanket][Markov blanket]]
+  In machine learning, the Markov blanket for a node A in a Bayesian
+  network is the set of nodes \partial A composed of A's parents, its
+  children, and its children's other parents. In a Markov network, the
+  Markov blanket of a node is its set of neighbouring nodes. A Markov
+  blanket may also be denoted by MB(A).
+
+  Every set of nodes in the network is conditionally independent of A
+  when conditioned on the set \partial A, that is, when conditioned on
+  the Markov blanket of the node A. The probability has the Markov
+  property; formally, for distinct nodes A and B:
+
+  Pr(A | \partial A, B) = Pr(A | \partial A)
+
+  The Markov blanket of a node contains all the variables that shield
+  the node from the rest of the network. This means that the Markov
+  blanket of a node is the only knowledge needed to predict the
+  behaviour of that node. The term was coined by Pearl in 1988.[1]
+
+  In a Bayesian network, the values of the parents and children of a
+  node evidently give information about that node; however, its
+  children's parents also have to be included, because they can be used
+  to explain away the node in question.
+* [[http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.127.8544&rep=rep1&type=pdf][Estimating High-Dimensional Directed Acyclic Graphs with the PC-Algorithm]]
+  - When ignoring the directions of a DAG, we get the skeleton of a
+    DAG. In general, it is different from the conditional independence
+    graph (CIG), see Section 2.1. (Thus, estimation methods for
+    directed graphs cannot be easily borrowed from approaches for
+    undirected CIGs.)
+    - For Thagard, maybe it suffices to produce a conditional
+      independence graph?
+  - An interesting alternative to greedy or structurally restricted
+    approaches is the PC-algorithm (after its authors, Peter and
+    Clark) from Spirtes et al. (2000). It starts from a complete,
+    undirected graph and deletes recursively edges based on
+    conditional independence decisions.
+  - More importantly, we show that consistency holds even as the
+    number of nodes and neighbors increases and the size of the
+    smallest non-zero partial correlations decrease as a function of
+    the sample size.
+  - If the equivalence class is found, the Markov Blanket of any
+    variable (node) can be read of easily. Given a set of nodes V and
+    suppose that M is the Markov Blanket of node X, then X is
+    conditionally independent of V \M given M. Thus, M contains all
+    and only the relevant features for X.
+  - A probability distribution P on R p is said to be faithful with
+    respect to a graph G if conditional independencies of the
+    distribution can be inferred from so-called d-separation in the
+    graph G and vice-versa.
+  - Two DAGs are equivalent if and only if they have the same skeleton
+    and the same v-structures.
+  - Although the main goal is to identify the CPDAG, the skeleton
+    itself already contains interesting information. In particular, if
+    P is faithful with respect to a DAG G, there is an edge between
+    nodes i and j in the skeleton of DAG G ⇔ for all s ⊆ V \ {i, j},
+    X(i) and X( j) are conditionally dependent given {X(r) ; r ∈ s},
+    (1) (Spirtes et al., 2000, Th. 3.4). This implies that if P is
+    faithful with respect to a DAG G, the skeleton of the DAG G is a
+    subset (or equal) to the conditional independence graph (CIG)
+    corresponding to P. (The reason is that an edge in a CIG requires
+    only conditional dependence given the set V \ {i, j}). More
+    importantly, every edge in the skeleton indicates some strong
+    dependence which cannot be explained away by accounting for other
+    variables. We think, that this property is of value for
+    exploratory analysis.
+    - This mentions the CIGs.
+  - As we will see later in more detail, estimating the CPDAG consists
+    of two main parts (which will naturally structure our analysis):
+    (1) Estimation of the skeleton and (2) partial orientation of
+    edges. All statistical inference is done in the first part, while
+    the second is just application of deterministic rules on the
+    results of the first part. Therefore, we will put much more
+    emphasis on the analysis of the first part. If the first part is
+    done correctly, the second will never fail. If, however, there
+    occur errors in the first part, the second part will be more
+    sensitive to it, since it depends on the inferential results of
+    part (1) in greater detail. Therefore, when dealing with a
+    high-dimensional setting (large p, small n), the CPDAG is harder
+    to recover than the skeleton. Moreover, the interpretation of the
+    CPDAG depends much more on the global correctness of the
+    graph. The interpretation of the skeleton, on the other hand,
+    depends only on a local region and is thus more reliable.
+  - The skeleton itself oftentimes already provides interesting
+    insights, and in a high-dimensional setting it might be
+    interesting to use the undirected skeleton as an alternative
+    target to the CPDAG when finding a useful approximation of the
+    CPDAG seems hopeless.
+  - A naive strategy for finding the skeleton would be to check
+    conditional independencies given all subsets s ⊆ V \ {i, j} (see
+    Formula 1), that is, all partial correlations in the case of
+    multivariate normal distributions as first suggested by Verma and
+    J.Pearl (1991). This would become computa- tionally infeasible and
+    statistically ill-posed for p larger than sample size. A much
+    better approach is used by the PC-algorithm which is able to
+    exploit sparseness of the graph. More precisely, we apply the part
+    of the PC-algorithm that identifies the undirected edges of the
+    DAG.
+    - all *partial correlations in the case of multivariate normal
+      distributions*
+    - [[http://en.wikipedia.org/wiki/Partial_correlation][Partial correlation]]
+      - Formally, the partial correlation between X and Y given a set
+        of n controlling variables Z = {Z1, Z2, …, Zn}, written ρXY·Z,
+        is the correlation between the residuals RX and RY resulting
+        from the linear regression of X with Z and of Y with Z,
+        respectively. In fact, the first-order partial correlation is
+        nothing else than a difference between a correlation and the
+        product of the removable correlations divided by the product
+        of the coefficients of alienation of the removable
+        correlations. The coefficient of alienation, and its relation
+        with joint variance through correlation are available in
+        Guilford (1973, pp. 344–345).
+      - In O(n^3) time, another approach allows all partial
+        correlations to be computed between any two variables Xi and
+        Xj of a set V of cardinality n, given all others, i.e., , if
+        the correlation matrix (or alternatively covariance matrix) Ω
+        = (ωij), where ωij = ρXiXj, is invertible. If we define P =
+        Ω−1, we have . . .
+      - [[http://en.wikipedia.org/wiki/Joint_probability_distribution][Joint probability distribution]]
+        - In the study of probability, given two random variables X
+          and Y defined on the same probability space, the joint
+          distribution for X and Y defines the probability of events
+          defined in terms of both X and Y.
+        - If P(X + Y) = P(X)P(Y), X and Y are independent.
+      - As conditional independence test
+        - See also: Fisher transformation With the assumption that all
+          involved variables are multivariate Gaussian, the partial
+          correlation ρXY·Z is zero if and only if X is conditionally
+          independent from Y given Z.[2] This property does not hold
+          in the general case. To test if a sample partial correlation
+          vanishes, Fisher's z-transform of the partial correlation
+          can be used: The null hypothesis is , to be tested against
+          the two-tail alternative . We reject H0 with significance
+          level α if: where Φ(·) is the cumulative distribution
+          function of a Gaussian distribution with zero mean and unit
+          standard deviation, and N is the sample size. Note that this
+          z-transform is approximate and that the actual distribution
+          of the sample (partial) correlation coefficient is not
+          straightforward. However, an exact t-test based on a
+          combination of the partial regression coefficient, the
+          partial correlation coefficient and the partial variances is
+          available.[3] The distribution of the sample partial
+          correlation was described by Fisher.[4]
+  - For finite samples, we need to estimate conditional
+    independencies. We limit ourselves to the Gaus- sian case, where
+    all nodes correspond to random variables with a multivariate
+    normal distribution. Furthermore, we assume faithful models, which
+    means that the conditional independence relations correspond to
+    d-separations (and so can be read off the graph) and vice versa;
+    see Section 2.1. In the Gaussian case, conditional independencies
+    can be inferred from partial correlations.
+    - Ok: so we need a strategy for estimating conditional
+      independencies for non-parametric, distrete data.
+    - it works iteratively over three parameters (features); we can
+      achieve multivariability by repetition.
+  - The only tuning parameter of the PC-algorithm is α, which is the
+    significance level for testing partial correlations. See Section 4
+    for further discussion.
+  - While finding the skeleton as in Algorithm 1, we recorded the
+    separation sets that made edges drop out in the variable denoted
+    by S. This was not necessary for finding the skeleton itself, but
+    will be essential for extending the skeleton to the equivalence
+    class.
+    - Theoretically, we don't need this shit for Thagard.
+  - Assessing the quality of fit is not quite straightforward, since
+    one has to examine simultaneously both the true positive rate
+    (TPR) and false positive rate (FPR) for a meaningful
+    comparison. We fol- low an approach suggested by Tsamardinos et
+    al. (2006) and use the Structural Hamming Distance (SHD).
+    - For coming up with the conditional independence graph, the most
+      difficult problem to solve is conditional independence, I
+      believe.
+  - The line width of the edges in the resulting skeleton and CPDAG
+    can be adjusted to correspond to the reliability of the estimated
+    dependencies. (The line width is proportional to the smallest
+    value of n − |k| − 3 Z(i, j, k) causing an edge, see
+    also 3. Therefore, thick lines are reliable).
+    - Ah, so this is different from causal effect, which can be
+      positive or negative!
+    - Causal effect is my main interest here, isn't it?
+* [[http://cran.r-project.org/web/packages/pcalg/vignettes/pcalgDoc.pdf][Causal Inference using Graphical Models with the R Package pcalg]]
+  - In the next step, we use the function pc to produce an estimate of
+    the underlying causal structure. Since this function is based on
+    conditional independence tests, we need to define two
+    things. First, we need a function that can compute conditional
+    independence tests in a way that is suitable for the data at
+    hand. For standard data types (Gaussian, discrete and binary) we
+    provide predefined functions. See the example section in the help
+    file of pc for more details. Secondly, we need a summary of the
+    data (sufficient statistic) on which the conditional independence
+    function can work. Each conditional independence test can be
+    performed at a certain significance level alpha. This can be
+    treated as a tuning parameter. In the following code, we use the
+    predefined function gaussCItest() as conditional independence test
+    and create the corresponding sufficient statistic, consisting of
+    the correlation matrix of the data and the sample size. Then we
+    use the function pc() to estimate the causal structure and plot
+    the result.
+    - we need an appropriate conditional-independence-test (which
+      seems to require a summary-statistic: correlation matrix, sample
+      size); significance level alpha: p?
+    - there is also the notion of causal effect via aka perturbation
+  - Based on the inferred causal structure, we can estimate the causal
+    effect of an intervention. Denote the variable corresponding to
+    node i in the graph by Vi . For example, suppose, we would
+    increase variable V1 by external intervention by one unit. The
+    recorded increase in variable V6 is the (total) causal effect of
+    V1 on V6.
+  - In general, nodes in the graph represent (random) variables and
+    edges represent some kind of dependence.
+  - If two nodes X and Y are d-separated by a set of nodes S, then the
+    corresponding random variables X and Y are conditionally
+    independent given the set of random variables S.
+  - . . . which was proven to reconstruct the structure of the
+    underlying DAG model given a conditional independence oracle up to
+    some ambiguity (equivalence class) to be discussed below. In
+    practice, the conditional independence oracle is replaced by a
+    statistical test for conditional independence. For situations
+    without hidden variables and under some further conditions it has
+    been shown that the PC algorithm using statistical tests instead
+    of an independence oracle is computationally feasible and
+    consistent even for very high-dimensional, sparse DAGs (see
+    Kalisch and Bühlmann (2007)).
+    - conditional independence oracle -> statistical test for
+      conditional independence
+  - user-specific conditional independence test
+    - The functions skeleton, pc and fci all need the argument
+      indepTest, a function of the form indepTest (x, y, S, suffStat)
+      to test conditional independence relationships. This function
+      must return the p-value of the conditional independence test of
+      x and y given S and some information on the data in the form of
+      a sufficient statistic (this might be simply the data frame with
+      the original data), where x, y, S indicate column positions of
+      the original data matrix.
+      - This gives me some idea of what to do: p-value, etc.;
+        threshold; at some point: alpha?
+    - A simple way to compute the partial correlation of x and y given
+      S for some data is to solve the two associated linear regression
+      problems x ∼ S and y ∼ S, get the residuals, and calculate the
+      correlation between the residuals. Finally, a correlation test
+      between the residuals yields a p-value that can be returned.
+      - Where was I just reading about this: [[http://en.wikipedia.org/wiki/Partial_correlation#As_conditional_independence_test][Fisher transformation]]?
+        No, that's partial correlation; although it does talk about
+        residuals.
+      - See also: [[http://udel.edu/~mcdonald/statcmh.html][CMH]].
+    - The argument suffStat is an arbitrary object containing several
+      pieces of information that are all used within the function to
+      produce the p-value. In the predefined function gaussCItest()
+      for example, a list containing the correlation matrix and the
+      number of observations is passed. This has the advantage that
+      any favorite (e.g. robust) method of computing the correlation
+      matrix can be used before partial correlations are
+      computed. Oftentimes, however, it will suffice to just pass the
+      complete data set in suffStat.
+      - Correlation test, by the way, is: Pearson's product moment
+        correlation coefficient, Kendall's tau or Spearman's rho. (See
+        ~cor.test~.)
+      - If S is null, correlation test on the samples themselves;
+        otherwise, correlation test on the residuals.
+      - ~lm.fit~ has a qr method: can we simulate this in scheme? we
+        have to implement linear regression.
+        - residuals: the residuals, that is response minus fitted
+          values.
+        - fitted.values: the fitted mean values.
+        - df.residual: the residual degrees of freedom.
+        - y: if requested, the response used.
+        - R does [[http://en.wikipedia.org/wiki/Quantile_regression][quantile regression]], apparently: "qr".
+          - Quantile regression is a type of regression analysis used
+            in statistics. Whereas the method of least squares results
+            in estimates that approximate the conditional mean of the
+            response variable given certain values of the predictor
+            variables, quantile regression results in estimates
+            approximating either the median or other quantiles of the
+            response variable.
+        - [[en.wikipedia.org/wiki/Method_of_least_squares][Least squares]]:
+          - The method of least squares is a standard approach to the
+            approximate solution of overdetermined systems, i.e. sets
+            of equations in which there are more equations than
+            unknowns. "Least squares" means that the overall solution
+            minimizes the sum of the squares of the errors made in
+            solving every single equation.
+          - The most important application is in data fitting. The
+            best fit in the least-squares sense minimizes the sum of
+            squared residuals, a residual being the difference between
+            an observed value and the fitted value provided by a model.
+          - Least squares problems fall into two categories: linear or
+            ordinary least squares and non-linear least squares,
+            depending on whether or not the residuals are linear in
+            all unknowns. The linear least-squares problem occurs in
+            statistical regression analysis; it has a closed-form
+            solution. The non-linear problem has no closed-form
+            solution and is usually solved by iterative refinement; at
+            each iteration the system is approximated by a linear one,
+            thus the core calculation is similar in both cases.
+          - The following discussion is mostly presented in terms of
+            linear functions but the use of least-squares is valid and
+            practical for more general families of functions. For
+            example, the Fourier series approximation of degree n is
+            optimal in the least-squares sense, amongst all
+            approximations in terms of trigonometric polynomials of
+            degree n. Also, by iteratively applying local quadratic
+            approximation to the likelihood (through the Fisher
+            information), the least-squares method may be used to fit
+            a generalized linear model.
+          - In 1822, Gauss was able to state that the least-squares
+            approach to regression analysis is optimal in the sense
+            that in a linear model where the errors have a mean of
+            zero, are uncorrelated, and have equal variances, the best
+            linear unbiased estimator of the coefficients is the
+            least-squares estimator. This result is known as the
+            Gauss–Markov theorem.
+          - The objective consists of adjusting the parameters of a
+            model function to best fit a data set. A simple data set
+            consists of n points (data pairs) (xi, yi), i = 1, ..., n,
+            where xi is an independent variable and yi is a dependent
+            variable whose value is found by observation.
+            - x, y are independent; S is observed.
+          - [[http://en.wikipedia.org/wiki/Linear_least_squares_(mathematics)][Linear least squares]]
+          - [[http://en.wikipedia.org/wiki/Numerical_methods_for_linear_least_squares][Numerical methods for linear least squares]]
+        - [[http://en.wikipedia.org/wiki/Quantile_regression][Quantile regression]]
+          - Quantile regression does not have this structure, and
+            instead leads to problems in linear programming that can
+            be solved by the simplex method.
+            - [[http://en.wikipedia.org/wiki/Linear_programming][Linear programming]]
+              - More formally, linear programming is a technique for
+                the optimization of a linear objective function,
+                subject to linear equality and linear inequality
+                constraints.
+              - Linear programs are problems that can be expressed in
+                canonical form:
+
+                maximize C^{T}X subject to Ax <= b and x >= 0
+
+                where x represents the vector of variables (to be
+                determined), c and b are vectors of (known)
+                coefficients and A is a (known) matrix of
+                coefficients. The expression to be maximized or
+                minimized is called the objective function (cTx in
+                this case). The equations Ax ≤ b are the constraints
+                which specify a convex polytope over which the
+                objective function is to be optimized. (In this
+                context, two vectors are comparable when every entry
+                in one is less-than or equal-to the corresponding
+                entry in the other. Otherwise, they are incomparable.)
+                - Holy shit: should we hook into a clean-room R
+                  implementation? Sucks, though, not to implement the
+                  statistics; but: Jesus.
+                - [[http://en.wikipedia.org/wiki/Simplex_algorithm][Simplex algorithm]]
+                  - In mathematical optimization, Dantzig's simplex
+                    algorithm (or simplex method) is a popular
+                    algorithm for linear programming.[1] [2][3][4][5]
+                    The journal Computing in Science and Engineering
+                    listed it as one of the top 10 algorithms of the
+                    twentieth century.[6]
+                  - Let a linear program be given by a canonical
+                    tableau. The simplex algorithm proceeds by
+                    performing successive pivot operations which each
+                    give an improved basic feasible solution; the
+                    choice of pivot element at each step is largely
+                    determined by the requirement that this pivot does
+                    improve the solution.
+                  - In general, a linear program will not be given in
+                    canonical form and an equivalent canonical tableau
+                    must be found before the simplex algorithm can
+                    start. This can be accomplished by the
+                    introduction of artificial variables. Columns of
+                    the identity matrix are added as column vectors
+                    for these variables. The new tableau is in
+                    canonical form but it is not equivalent to the
+                    original problem. So a new objective function,
+                    equal to the sum of the artificial variables, is
+                    introduced and the simplex algorithm is applied to
+                    find the minimum; the modified linear program is
+                    called the Phase I problem.[22]
+          - The fact that the algorithms of linear programming appear
+            more esoteric to users may explain why quantile regression
+            is not as widely used as the method of least squares.[3]
+  - Input: Vertex set V, conditional independence information,
+    significance level α
+    Output: Estimated CPDAG G, separation sets S
+    Edge types: →, −
+    (P1) Form the complete undirected graph on the vertex set V
+    (P2) Test conditional independence given subsets of adjacency sets at
+    a given significance
+    level α and delete edges if conditional independent
+    (P3) Orient v-structures
+    (P4) Orient remaining edges.
+    - This is cool: exactly what I need to simulate.
+  - Therefore, even if we have an infinite amount of observations we
+    can only report on a multiset of possible causal values (it is a
+    multiset rather than a set because it can contain duplicate
+    values). One of these values is the true causal effect. Despite
+    the inherent ambiguity, this result can oftentimes still be very
+    useful, when the set has certain properties (e.g. all values are
+    much larger than zero).
+    - If we use this notion of causal effect for Thagard: distinguish
+      between values in the multiset?
+    - If we use the significance of the link, how do we distinguish
+      between positive and negative significance: some kind of
+      heuristic on the possible causal values (e.g. all negative, or
+      some summary statistic)? We don't yet have any justification for
+      the summary statistic, though.
+  - ida
+    - shit, though: we don't have unambiguous causal effect data
+      without the resulting dag
+    - It is assumed that we have observational data that are
+      multivariate Gaussian and faithful to the true (but unknown)
+      underlying causal DAG (without hidden variables). Under these
+      assumptions, ida estimates the multiset of possible total causal
+      effects of x on y, where the ∂ total causal effect is defined
+      via Pearl’s do-calculus as ∂z E[Y |do(X = z)] (this value does
+      not depend on z, since Gaussianity implies that conditional
+      expectations are linear).
+      - Pearl's do-calculus.
+    - We estimate a multiset of possible total causal effects instead
+      of the unique total causal effect, since it is typically
+      impossible to identify the latter when the true underlying
+      causal DAG is unknown (even with an infinite amount of data).
+    - Since there are three undirected edges in the CPDAG, there might
+      be up to 23 = 8 DAGs in the corresponding equivalence
+      class. However, the undirected edges V2 −V3 −V5 can be formed to
+      a new v-structure. As mentioned in section 2.1, DAGs in the
+      equivalence class must have exactly the same v-structures as the
+      corresponding CPDAG. Thus, V2 − V3 − V5 can only be directed as
+      V2 → V3 → V5 , V2 ← V3 ← V5 or V2 ← V3 → V5 , and not as V2 → V3
+      ← V5 , since this would introduce a new colliding
+      v-structure. There is only one remaining undirected edge (V1 −
+      V6 ), which can be directed in two ways. Thus, there are six
+      valid DAGs (i.e. they have no new v-structure and no directed
+      cycle) and these form the equivalence class represented by the
+      CPDAG. In Fig. 7, all DAGs in the equivalence class are
+      shown. DAG 6 is the true DAG.
+      - Shit's getting subtle.
+    - For each DAG G in the equivalence class, we apply Pearl’s
+      do-calculus to estimate the total causal effect of x on y. Since
+      we assume Gaussianity, this can be done via a simple linear
+      regression: If y is not a parent of x, we take the regression
+      coefficient of x in the regression lm(y ~ x + pa(x)), where
+      pa(x) denotes the parents of x in the DAG G; if y is a parent of
+      x in G, we set the estimated causal effect to zero.
+    - If the equivalence class contains k DAGs, this will yield k
+      estimated total causal effects. Since we do not know which DAG
+      is the true causal DAG, we do not know which estimated total
+      causal effect of x on y is the correct one. Therefore, we return
+      the entire multiset of k estimated effects.
+  - idaFast
+    - In some applications it is desirable to estimate the causal effect
+      of one variable on a set of response variables. In these
+      situations, the function idaFast() should be used. Imagine for
+      example, that we have data on several variables, that we have no
+      background knowledge about the causal effects among the variables
+      and that we want to estimate the causal effect of each variable
+      onto each other variable. To this end, we could consider for each
+      variable the problem: What is the causal effect of this variable
+      on all other variables. Of course, one could solve the problem by
+      using ida on each pair of variables. However, there is a more
+      efficient way which uses the fact that a linear regression of a
+      fixed set of explanatory variables on several different response
+      variables can be computed very efficiently.
+* [[https://onlinecourses.science.psu.edu/stat504/node/112][P-value and independence]]
+  - The p-value is P( ≥ 0.1600) = .984, indicating that the
+    conditional independence model fits extremely well. As a result,
+    we will not reject this model here. However, the p-value is so
+    high - doesn't it make you wonder what is going on here?
+* [[http://www.bnlearn.com/examples/ci.html][Conditional independence tests]]
+  Available (conditional) independence tests
+
+  The conditional independence tests used in constraint-based algorithms
+  in practice are statistical tests on the data set. Available tests
+  (and the respective labels) are:
+  - discrete case (multinomial distribution) 
+    - mutual information: an information-theoretic distance
+    measure. It's proportional to the log-likelihood ratio (they
+    differ by a 2n factor) and is related to the deviance of the
+    tested models. Both the asymptotic chi-square test (mi) and the
+    Monte Carlo permutation test (mc-mi) are implemented.
+    - shrinkage estimator for the mutual information (mi-sh): an
+    improved asymptotic chi-square test based on the James-Stein
+    estimator for the mutual information.
+    - Pearson's X^2: the classical Pearson's X^2 test for contingency
+    tables. Both the asymptotic chi-square test (x2) and the Monte
+    Carlo permutation test (mc-x2) are implemented.
+    - Akaike Information Criterion (aict): an experimental AIC-based
+    independence test, computed comparing the mutual information and
+    the expected information gain.
+  - continuous case (multivariate normal distribution) 
+    - linear correlation: linear correlation. Both the exact Student's
+    t test (cor) and the Monte Carlo permutation test (mc-cor) are
+    implemented.
+    - Fisher's Z: a transformation of the linear correlation with
+    asymptotic normal distribution. Used by commercial software (such
+    as TETRAD II) for the PC algorithm (an R implementation is present
+    in the pcalg package on CRAN). Both the asymptotic normal (zf) and
+    the Monte Carlo permutation test (mc-zf) are implemented.
+    - mutual information: an information-theoretic distance
+    measure. Again it's proportional to the log-likelihood ratio (they
+    differ by a 2n factor). Both the asymptotic chi-square test (mi-g)
+    and the Monte Carlo permutation test (mc-mi-g) are implemented.
+    - shrinkage estimator for the mutual information (mi-g-sh): an
+    improved asymptotic chi-square test based on the James-Stein
+    estimator for the mutual information.
+* [[https://onlinecourses.science.psu.edu/stat504/node/113][Cochran-Mantel-Haenszel Test]]
+  - This is another way to test for conditional independence, by
+    exploring associations in partial tables for 2 × 2 × K tables.
+* [[https://onlinecourses.science.psu.edu/stat504/node/112][Conditional independence]]
+* [[http://home.vrweb.de/~martin.theus/theus.pdf][Visualizing loglinear models]]
+  - We consider visual methods based on mosaic plots for interpreting
+    and modeling categorical data. Categorical data are most often
+    modeled using loglinear models. For certain loglinear models,
+    mosaic plots have unique shapes that do not depend on the actual
+    data being modeled. These shapes reflect the structure of a model,
+    defined by the presence and absence of particular model
+    coefficients. Displaying the expected values of a loglinear model
+    allows one to incorporate the residuals of the model graphically
+    and to visually judge the adequacy of the loglinear fit. This
+    procedure leads to stepwise interactive graphical modeling of
+    loglinear models. We show that it often results in a deeper
+    understanding of the structure of the data. Linking mosaic plots
+    to other inter- active displays offers additional power that
+    allows the investigation of more complex dependence models than
+    provided by static displays.
+* [[http://www.statmethods.net/stats/frequencies.html][Frequencies and crosstabs]]
+  Loglinear Models 
+
+  You can use the loglm( ) function in the MASS package to produce
+  log-linear models. For example, let's assume we have a 3-way
+  contingency table based on variables A, B, and C. 
+
+  library(MASS)
+  mytable <- xtabs(~A+B+C, data=mydata) 
+
+  We can perform the following tests:
+
+  Mutual Independence: A, B, and C are pairwise independent.
+  loglm(~A+B+C, mytable) 
+
+  Partial Independence: A is partially independent of B and C (i.e., A
+  is independent of the composite variable BC).
+
+  loglin(~A+B+C+B*C, mytable) 
+
+  Conditional Independence: A is independent of B, given C. 
+
+  loglm(~A+B+C+A*C+B*C, mytable)
+
+  No Three-Way Interaction
+
+  loglm(~A+B+C+A*B+A*C+B*C, mytable) 
+
+  Martin Theus and Stephan Lauer have written an excellent article on
+  Visualizing Loglinear Models, using mosaic plots. There is also
+  great tutorial example by Kevin Quinn on analyzing loglinear models
+  via glm.
+
+  - Crosstabs and log-linear models are coming up a lot
+    w.r.t. conditional independence on categorical data.
+* [[http://en.wikipedia.org/wiki/Markov_property][Markov property]]
+  - A stochastic process has the Markov property if the conditional
+    probability distribution of future states of the process
+    (conditional on both past and present values) depends only upon
+    the present state; that is, given the present, the future does not
+    depend on the past. A process with this property is said to be
+    Markovian or a Markov process. The most famous Markov process is
+    Markov chain. Brownian motion is another well-known and important
+    Markov process.
+* \protect\citetitle{darroch:1980}
+  - this leads us to consider Markov fields on finite graphs and from
+    these considerations it turns out that it is natural to define a
+    class of models, graphical models whose interpretation most
+    elegantly is given as a Markov property of a certain random field
+    associated with the model.
+* [[http://www.r-project.org/conferences/DSC-2003/Drafts/Lauritzen.pdf][gRaphical models]] (Lauritzen)
+  - Undirected graphical models
+    - Traces back to statistical physics (Gibbs 1902)
+    - Models for spatial interaction (Besag 1974)
+    - Interpreting hierarchical log-linear models by conditional
+      independence, using analogy to Markov random fields (Darroch,
+      Lauritzen and Speed 1980); CoCo (Badsberg 1991)
+      - Darroch, J. N., Lauritzen, S. L. and Speed, T. P.: 1980,
+        Markov fields and log-linear interaction models for
+        contingency tables, Annals of Statistics 8, 522–539.
+    - Extending hierarchical log-linear models to include continuous
+      variables (Lauritzen and Wermuth 1989); MIM (Edwards 1990).
+* [[http://alexandria.tue.nl/repository/books/585017.pdf][Testing conditional independence for continuous random variables]]
+  - Note that the above remark regarding the limited number of tests
+    of conditional independence applies only if the control variable X
+    is continuous. If X is categorical, with sufficiently many
+    observations per category, it is not difficult to devise a test of
+    conditional independence: for each category, a test of
+    independence can be done, and these tests can be combined in
+    various ways. If all three variables are categorical, log-linear
+    techniques can be used (cf. Lauritzen, 1996).
+    - Lauritzen, S. L. (1996). Graphical models. Oxford: Clarendon
+      Press.
+      - Lauritzen comes up a lot.
+* [[http://www.cs.waikato.ac.nz/ml/weka/][weka]]
+  - [[http://www.cs.waikato.ac.nz/~remco/weka_bn/node9.html][conditional indepedence test based structure learning]]
+    - A test is performed by using any of the score metrics described
+      in Section 2.1.
+      - Starting with a complete undirected graph, we try to find
+        conditional independencies <x,y|Z> in the data. For each pair
+        of nodes x, y, we consider sets Z starting with cardinality 0,
+        then 1 up to a user defined maximum. Furthermore, the set Z is
+        a subset of nodes that are neighbors of both x and y. If an
+        independency is identified, the edge between x and y is
+        removed from the skeleton.
+* [[http://www.public.asu.edu/~cbaral/cse494-598-s06/classnotes/Learning-Causality.ppt][Learning causality]]
+  - Once a causal model M is formed, it defines a joint probability
+    distribution P(M) over the variables in the system;
+  - This distribution reflects some features of the causal structure
+    Each variable must be independent of its grandparents, given the
+    values of its parents
+  - We may allowed to inspect a select subset OV of “observed”
+    variables to ask questions about P[o], the probability
+    distribution over the observations;
+  - We may recover the topology D of the DAG, from features of the
+    probability distribution P[o].
+  - Based on variable dependencies;
+  - Find all pairs of variables that are dependent of each other
+    (applying standard statistical method on the database);
+    - what standard statistical methods? damn.
+  - Eliminate (as much as possible) indirect dependencies;
+  - Determine directions of dependencies
+  - For each pair of variables a and b in V, search for a set Sab such
+    that (a╨b | Sab) holds in P – in other words, a and b should be
+    independent in P, conditioned on Sab.
 * \protect\citetitle{maathius:2009}
   - Pearl: "an associational concept is any relationship that can be
     defined in termes of a joint distribution of observed variables,

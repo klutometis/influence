@@ -153,7 +153,6 @@
   becoming C_{n+1}?
 
   #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    library(functional)
     file <- tempfile()
     a <- sample(6, 1000, TRUE)
     b <- sample(6, 1000, TRUE)
@@ -174,30 +173,40 @@
                               c(),
                               right=TRUE),
                        names=nodes)
-    is.connected <- function(edges, whence, whither) {
-      visited <- c()
-      ## Set operations are expensive; switch instead to a hash-table of
-      ## some kind.
-      search <- function(whence) {
-        if (whence %in% visited)
-          FALSE
-        else {
-          visited <<- c(whence, visited)
-          neighbors <- setdiff(do.call(`$`, list(edges, whence)),
-                               visited)
-          ## If (is.null(neighbors)) FALSE, etc.
-          Reduce(any,
-                 c(whither %in% neighbors,
-                   Map(search,
-                       neighbors)),
-                 FALSE)
-        }
+    
+    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
+    edges <- list('1'=c('2', '3', '4', '5'),
+                  '2'=c('1', '7'),
+                  '3'=c('1', '6'),
+                  '4'=c('1', '6'),
+                  '5'=c('1', '6'),
+                  '6'=c('3', '4', '5', '7'),
+                  '7'=c('2', '6'))
+    
+    nodes <- names(edges)
+    
+    paths <- function(edges, whence, whither) {
+      paths <- NULL
+      ## In this case, thank God for the unmemoized nature of `visited'!
+      ## Doesn't it resemble `amb'?
+      search <- function(whence, visited) {
+        if (whence == whither)
+          paths <<- c(list(visited), paths)
+        neighbors <- edges[[whence]]
+        for (neighbor in setdiff(neighbors, visited))
+          search(neighbor, c(visited, neighbor))
       }
-      search(whence)
+      search(whence, whence)
+      paths
     }
     
-    str(is.connected(edges, 'a', 'b'))
-    str(is.connected(edges, 'a', 'a'))
+    stopifnot(identical(paths(edges, '4', '2'),
+                        list(c("4", "6", "7", "2"),
+                             c("4", "6", "5", "1", "2"),
+                             c("4", "6", "3", "1", "2"),
+                             c("4", "1", "5", "6", "7", "2"),
+                             c("4", "1", "3", "6", "7", "2"),
+                             c("4", "1", "2"))))
     
   #+END_SRC
 * DONE connectionist

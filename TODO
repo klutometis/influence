@@ -1,15 +1,171 @@
 # -*- org -*-
 * TODO CIG in R
+  #+BEGIN_QUOTE
+  The adjacency set of a node j in graph G, denoted by ad j(G, j), are
+  all nodes i which are directly connected to j by an edge (directed
+  or undirected).
+  #+END_QUOTE
+
+  [[./kalisch-estimating-high-dimensional-dags.pdf][\cite{kalisch:2007}]]:
+
+  #+BEGIN_QUOTE
+  Algorithm 1 The PC pop-algorithm
+  - INPUT: Vertex Set V, Conditional Independence Information
+  - OUTPUT: Estimated skeleton C, separation sets S (only needed when
+    directing the skeleton afterwards)
+  - Form the complete undirected graph CxC on the vertex set V.
+  - l = −1; C = CxC
+  - repeat
+    - l = l + 1
+    - repeat
+      - # Does this operate anew on the modified graph, or continue
+        from the last node? `(new)' would seem to imply not starting
+        from node_0, lest there be some form of infinite regress.
+      - # The |adj(C, i)| at time t (Card_t) is <= Card_{t - 1}; since
+        l in monotonically increasing, adj(C, i) should not be
+        repeated.
+      - Select a (new) ordered pair of nodes i, j that are adjacent in
+        C such that |adj(C, i) \ {j}| ≥ l
+      - repeat
+        - Choose (new) k ⊆ adj(C, i) \ {j} with |k| = l.
+        - if i and j are conditionally independent given k then
+          - Delete edge i, j
+          - Denote this new graph by C
+          - Save k in S(i, j) and S(j, i)
+        - end if
+      - until edge i, j is deleted or all k ⊆ ad j(C, i) \ {j}
+        with |k| = l have been chosen
+    - until all ordered pairs of adjacent variables i and j such
+      that |adj(C, i) \ {j}| ≥ and k ⊆ adj(C, i) \ {j} with |k| = l
+      have been tested for conditional independence
+  - until for each ordered pair of adjacent nodes i, j: |adj(C, i) \
+    {j}| < l.
+  #+END_QUOTE
+
+  [[./spirtes-algorithm-for-fast-recovery-of-sparse-causal-graphs-1991.pdf][\cite{spirtes:1991}]]:
+
+  #+BEGIN_QUOTE
+  PC Algorithm
+
+  Let A_C{ab} denote the set of vertices adjacent to a or to b in
+  graph C, except for a and b themselves. Let U_C{ab} denote the set
+  of vertices in graph C on (acyclic) undirected paths between a and
+  b, except for a and b themselves. (Since the algorithm is
+  continually updating C, A_C{ab} and U_C{ab} are constantly changing
+  as the algorithm progresses.)
+
+  - Form the complete undirected graph C on the vertex set V.
+  - n = 0
+  - repeat
+    - For each pair of variables (a,b) adjacent in C, if A_C{ab} ∩
+      U_C{ab} has cardinality greater than or equal to n and a, b are
+      independent conditional on any subsets of A_C{ab} ∩ U_C{ab} of
+      cardinality n, delete a-b from C.
+    - n=n+i.
+  - until for each pair of adjacent vertices a, b, A_C{ab} ∩ U_C{ab}
+    is of cardinality less than n.
+  - Call the resulting undirected graph F.
+  - For each triple of vertices (a,b,c) such that the pair (a,b) and
+    the pair (b,c) are each adjacent in F but the pair (a,c) are not
+    adjacent in F, orient a-b-c as a -> b <- c if and only if a and c
+    are dependent on subset of A_F{ac} ∩ U_F{ac} containing b. Output
+    all graphs every ccnsistent with these orientations.
+  #+END_QUOTE
+
+  Is Spirtes using "adjacent" in the sense of "connected"? In which
+  case, doesn't A_C{ab} ∩ U_C{ab} always reduce to A_C{ab}? I'm going
+  to ignore U_C{ab}, therefore; since it's always a superset of
+  A_C{ab}.
+
+  Since we're dealing with an undirected graph, furthermore, we can
+  check for adjacency merely with the originating node; and don't need
+  to do a search of the inverted map.
+
+  Otherwise: a whence and whither map?
+
+  No, no:
+
+  #+BEGIN_QUOTE
+  21:48 < klutometis> Here's something slightly irritating: a paper
+  I'm reading defines Pab as the nodes adjacent to a and b minus a and
+  b; and Uab as the nodes in all undirected paths between a and b
+  minus a and b.
+
+  21:49 < klutometis> It then goes on to reference the intersection
+  between Pab and Uab; isn't Uab always a superset of Pab, though?
+  And isn't the intersection of Pab and Uab always Pab?
+
+  21:49 < jcowan> No.
+
+  21:49 < klutometis> Damn; I knew there was some subtlety.
+
+  21:49 < jcowan> Take a node n which is adjacent to a but not on any
+  path toward b.
+
+  21:50 < jcowan> That would be in Pab but not Uab.
+
+  21:50 < klutometis> Ah, of course; indeed, indeed.
+
+  21:50 < pjb> Adjacent nodes are directly connected to the reference
+  node.  Nodes on a path not necessarily.
+
+  21:51 < pjb> a-c-d-e-b   Pab = {c,e}  Uab={c,d,e}
+
+  21:52 < jcowan> And adjacent nodes aren't necessarily on a path:
+
+  21:52 < jcowan> z-a-c-b, z is adjacent but not on a path.
+
+  21:53 < klutometis> Right, right; the intersection of Pab and Uab is
+  of course those adjacent nodes that "point" between a and b.
+
+  21:54 < jcowan> Or: a's gateways to b plus b's gateways to a.
+
+  21:56 < klutometis> Right; that's a good analogy.
+  #+END_QUOTE
+
+  Here's a pre-statement, by the way, in Spirtes 1990 paper:
+
+  #+BEGIN_QUOTE
+  PC Algorithm:
+
+  Let Aab denote the set of vertices adjacent to a or to b. Let Pab
+  denote the set of vertices that are parents of a or of b. Let Uab
+  denot the set of vertices on undirected paths between a and b.
+
+  - Form the complete graph C_{-1} on the vertex set V.
+  - For each pair of variables a, b adjacent in C_n:
+    - If Aab ∩ Uab does not have cardinality greater than n, go to the
+      next pair of vertices adjacent in C_n.
+    - (beta) If Aab does have cardinality greater than n, determine if
+      a, b are independent conditional on any subsets of Aab ∩ Uab of
+      cardinality n + 1. If so, delet a-b from C_n.
+  - Let C_{n+1} be the graph that results from this procedure applied
+    to each pair of variables. Continue until a value f + 1 of n is
+    reached such that (beta) is not satisfied for any pair.
+  - For each triple of vertices a, b, c such that the pair a, b and
+    the pair b, c are each adjacent in C_f but the pair a, c are not
+    adjacent in C_f, orient a - b - c as a -> b <- c if and only if a
+    and c are dependent on every subset of Aac ∩ Uac containing
+    b. Output all graphs consistent with these orientations.
+  #+END_QUOTE
+
+  The 1990 paper seems to imply that we should modify a copy of C_n
+  becoming C_{n+1}?
+
   #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(functional)
     file <- tempfile()
     a <- sample(6, 1000, TRUE)
     b <- sample(6, 1000, TRUE)
     c <- sample(6, 1000, TRUE)
-    data <- cbind(a, b, c)
+    d <- a
+    e <- a
+    f <- b
+    data <- cbind(a, b, c, d, e, f)
     write.csv(x=data, file=file, row.names=FALSE)
     data <- read.csv(file=file)
-    cor.test(resid(lm(data$a ~ data$c)),
-             resid(lm(data$b ~ data$c)))$p.value
+    ## cor.test(resid(lm(data$a ~ data$c)),
+    ##          resid(lm(data$b ~ data$c)))$p.value
     nodes <- colnames(data)
     ## Complete, bidirectional graph
     edges <- structure(Reduce(function(node, edges)
@@ -18,6 +174,30 @@
                               c(),
                               right=TRUE),
                        names=nodes)
+    is.connected <- function(edges, whence, whither) {
+      visited <- c()
+      ## Set operations are expensive; switch instead to a hash-table of
+      ## some kind.
+      search <- function(whence) {
+        if (whence %in% visited)
+          FALSE
+        else {
+          visited <<- c(whence, visited)
+          neighbors <- setdiff(do.call(`$`, list(edges, whence)),
+                               visited)
+          ## If (is.null(neighbors)) FALSE, etc.
+          Reduce(any,
+                 c(whither %in% neighbors,
+                   Map(search,
+                       neighbors)),
+                 FALSE)
+        }
+      }
+      search(whence)
+    }
+    
+    str(is.connected(edges, 'a', 'b'))
+    str(is.connected(edges, 'a', 'a'))
     
   #+END_SRC
 * DONE connectionist

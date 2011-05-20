@@ -5,3 +5,7 @@
 (setup-shared-extension-module
  'influence
  (extension-version 0.1))
+
+(install-program
+ 'influence
+ '(("bin/influence" "influence")))

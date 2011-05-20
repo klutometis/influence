@@ -1,4 +1,10 @@
 # -*- org -*-
+* TODO ~explain~, ~contradict~, ~evidence~ should be macros
+  none of this fragile list stuff, and need to escape; also: ~propose~
+  is superfluous: propose new nodes upon explanation, etc.
+
+  for ~explain~: the last is ~explanandum~; everything up until then:
+  ~explanators~.
 * TODO debug function that quotes and evaluates expressions
 * TODO CIG in R
   #+BEGIN_QUOTE
@@ -333,6 +339,7 @@
                 if (cor.test(data[,whence], data[,whither])$p.value < 0.05) {
                   graph[[whence]] <<- setdiff(graph[[whence]], whither)
                   graph[[whither]] <<- setdiff(graph[[whither]], whence)
+                  break
                 }          
             } else {
               for (subset in combn(nodes, m)) {
@@ -341,6 +348,7 @@
                 if (cor.test(residuals[,1], residuals[,2])$p.value < 0.05) {
                   graph[[whence]] <<- setdiff(graph[[whence]], whither)
                   graph[[whither]] <<- setdiff(graph[[whither]], whence)
+                  break
                 }
               }
             }
@@ -350,12 +358,54 @@
     
       if (there.exist.adjacent.nodes.of.sufficient.cardinality)
         prune.conditional.independencies(graph, cardinality + 1)
-      else
-        cardinality
     }
     
     prune.conditional.independencies(graph)
-    as.list(graph)
+    
+    as.influence <- function(x, ...)
+      UseMethod('as.influence')
+    
+    as.influence.graph <- function(graph, data, evidence=NULL) {
+      proposals <-
+        Reduce(paste,
+               Map(function(node)
+                   sprintf('(propose! \'%s)', node),
+                   ls(graph)))
+      correlation <- cor(data)
+      explanations <- NULL
+      contradictions <- NULL
+      for.each.adjacent.pair(graph, function(graph, whence, whither) {
+        ## Prune the reverse link, while we're at it.
+        graph[[whither]] <<- setdiff(graph[[whither]],
+                                     whence)
+        if (correlation[whence, whither] >= 0)
+          explanations <<-
+            paste(sprintf('(explain! \'(%s) \'%s)',
+                          whence,
+                          whither),
+                  explanations)
+        else
+          contradictions <<-
+            paste(sprintf('(contradict! \'(%s) \'%s)',
+                          whence,
+                          whither),
+                  contradictions)
+      })
+      evidence <-
+        Reduce(paste,
+               Map(function(evidence)
+                   sprintf('(evidence! \'(%s))', evidence),
+                   evidence))
+      paste(proposals,
+            explanations,
+            contradictions,
+            evidence)
+    }
+    
+    influence <- pipe('influence random')
+    cat(as.influence(graph, data, 'a'),
+        file=influence)
+    close(influence)
     
   #+END_SRC
 

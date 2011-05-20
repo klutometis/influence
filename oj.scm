@@ -1,4 +1,5 @@
 #!/usr/bin/env chicken-scheme
+(include "influence.scm")
 (use influence)
 
 (with-problem

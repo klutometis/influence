@@ -1,0 +1,23 @@
+#!/usr/bin/env chicken-scheme
+;; -*- scheme -*-
+(use influence)
+(let ((output (car (command-line-arguments))))
+  (with-problem
+   (make-problem)
+   (lambda ()
+     (let ((expressions
+            (let next ((expression (read))
+                       (expressions '()))
+              (if (eof-object? expression)
+                  (reverse expressions)
+                  (next (read) (cons expression expressions))))))
+       (eval `(begin (import scheme chicken)
+                     (require-library influence)
+                     (import influence)
+                     ,@expressions)))
+     (display-problem/dot
+      (solve! (connectionist
+               (make-animation-processor
+                (format "~a.gif" output))
+               (make-time-series-processor
+                (format "~a-series.png" output))))))))

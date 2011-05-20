@@ -1,4 +1,5 @@
 # -*- org -*-
+* TODO debug function that quotes and evaluates expressions
 * TODO CIG in R
   #+BEGIN_QUOTE
   The adjacency set of a node j in graph G, denoted by ad j(G, j), are
@@ -71,6 +72,13 @@
     are dependent on subset of A_F{ac} ∩ U_F{ac} containing b. Output
     all graphs every ccnsistent with these orientations.
   #+END_QUOTE
+
+  ". . . a, b are independent conditional on any subsets of A_C{ab} ∩
+  U_C{ab}": is it still sufficient to correlate the residuals of x ∼ S
+  and y ∼ S? but S might be multiple variables, can't it?
+
+  That's fine, though; we can subset the data frame followingly:
+  data[,S].
 
   Is Spirtes using "adjacent" in the sense of "connected"? In which
   case, doesn't A_C{ab} ∩ U_C{ab} always reduce to A_C{ab}? I'm going
@@ -168,10 +176,12 @@
   (Neural plasticity, fluid intelligence and taking the hard way out,
   etc.)
 
-  #+srcname: example-graphs
-  #+BEGIN_SRC R
+  #+BEGIN_SRC R :tangle example-graphs.R
     make.graph <- function(...)
-      as.environment(list(...))
+      structure(as.environment(list(...)),
+                class='graph')
+    
+    as.list.graph <- as.list.environment
     
     ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
     gabro <- make.graph('1'=c('2', '3', '4', '5'),
@@ -191,8 +201,8 @@
     
   #+END_SRC
   
-  #+BEGIN_SRC R :tangle all-paths.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    <<example-graphs>>
+  #+BEGIN_SRC R :tangle all-paths.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    source('example-graphs.R')
     
     ## This is an exponential algorithm; can we do some kind of clever
     ## dynamic optimization? It seems like the paths to whither could be
@@ -226,26 +236,19 @@
   #+END_SRC
 
 
-  #+BEGIN_SRC R :tangle nodes-from.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    <<example-graphs>>
-    
-    cliques <- list('1'=c('2', '4', '5', '6'),
-                    '2'=c('3', '1'),
-                    '3'=c('2', '4'),
-                    '4'=c('3', '1'),
-                    '5'=c('1'),
-                    '6'=c('1'))
+  #+BEGIN_SRC R :tangle nodes-from.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    source('example-graphs.R')
     
     ## We're essentially dealing with cliques, aren't we; or strongly
     ## connected components?
-    nodes.from <- function(edges, whence, whither) {
+    nodes.from <- function(graph, whence, whither) {
       nodes <- c()
       ## In this case, thank God for the unmemoized nature of `visited'!
       ## Doesn't it resemble `amb'?
       search <- function(whence, visited) {
         if (whence == whither)
           nodes <<- union(visited, nodes)
-        neighbors <- edges[[whence]]
+        neighbors <- graph[[whence]]
         for (neighbor in setdiff(neighbors, visited))
           search(neighbor, c(visited, neighbor))
       }
@@ -261,9 +264,8 @@
     
   #+END_SRC
 
-  #+BEGIN_SRC R :tangle all-adjacent-nodes.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    library(proto)
-    <<example-graphs>>
+  #+BEGIN_SRC R :tangle all-adjacent-nodes.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    source('example-graphs.R')
     
     ## Check both directions?
     is.adjacent <- function(graph, whence, whither)
@@ -292,7 +294,10 @@
   #+END_SRC
 
   #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    file <- tempfile()
+    source('example-graphs.R')
+    source('nodes-from.R')
+    source('all-adjacent-nodes.R')
+    
     a <- sample(6, 1000, TRUE)
     b <- sample(6, 1000, TRUE)
     c <- sample(6, 1000, TRUE)
@@ -300,55 +305,38 @@
     e <- a
     f <- b
     data <- cbind(a, b, c, d, e, f)
-    write.csv(x=data, file=file, row.names=FALSE)
-    data <- read.csv(file=file)
-    ## cor.test(resid(lm(data$a ~ data$c)),
-    ##          resid(lm(data$b ~ data$c)))$p.value
+    
     nodes <- colnames(data)
-    ## Complete, bidirectional graph
-    edges <- structure(Reduce(function(node, edges)
-                              c(list(setdiff(nodes, node)), edges),
-                              nodes,
-                              c(),
-                              right=TRUE),
-                       names=nodes)
     
-    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
-    edges <- list('1'=c('2', '3', '4', '5'),
-                  '2'=c('1', '7'),
-                  '3'=c('1', '6'),
-                  '4'=c('1', '6'),
-                  '5'=c('1', '6'),
-                  '6'=c('3', '4', '5', '7'),
-                  '7'=c('2', '6'))
+    make.complete.undirected.graph <- function(nodes)
+      do.call(make.graph,
+              structure(Reduce(function(node, graph)
+                               c(list(setdiff(nodes, node)), graph),
+                               nodes,
+                               c(),
+                               right=TRUE),
+                        names=nodes))
     
-    nodes <- names(edges)
+    graph <- make.complete.undirected.graph(colnames(data))
     
-    ## This is an exponential algorithm; can we do some kind of clever
-    ## dynamic optimization? It seems like the paths to whither could be
-    ## whitherly memoized.
-    paths <- function(edges, whence, whither) {
-      paths <- NULL
-      ## In this case, thank God for the unmemoized nature of `visited'!
-      ## Doesn't it resemble `amb'?
-      search <- function(whence, visited) {
-        if (whence == whither)
-          paths <<- c(list(visited), paths)
-        neighbors <- edges[[whence]]
-        for (neighbor in setdiff(neighbors, visited))
-          search(neighbor, c(visited, neighbor))
-      }
-      search(whence, whence)
-      paths
+    prune.conditional.independencies <- function(graph, cardinality=0) {
+      there.exist.adjacent.nodes.of.sufficient.cardinality <- FALSE
+    
+      for.each.adjacent.pair(graph, function(graph, whence, whither) {
+        nodes <- setdiff(intersect(union(graph[[whence]], graph[[whither]]),
+                                   nodes.from(graph, whence, whither)),
+                         c(whence, whither))
+        if (length(nodes) >= cardinality)
+          there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
+      })
+    
+      if (there.exist.adjacent.nodes.of.sufficient.cardinality)
+        prune.conditional.independencies(graph, cardinality + 1)
+      else
+        cardinality
     }
     
-    stopifnot(identical(paths(edges, '4', '2'),
-                        list(c("4", "6", "7", "2"),
-                             c("4", "6", "5", "1", "2"),
-                             c("4", "6", "3", "1", "2"),
-                             c("4", "1", "5", "6", "7", "2"),
-                             c("4", "1", "3", "6", "7", "2"),
-                             c("4", "1", "2"))))
+    prune.conditional.independencies(graph)
     
   #+END_SRC
 

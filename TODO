@@ -138,7 +138,7 @@
       next pair of vertices adjacent in C_n.
     - (beta) If Aab does have cardinality greater than n, determine if
       a, b are independent conditional on any subsets of Aab ∩ Uab of
-      cardinality n + 1. If so, delet a-b from C_n.
+      cardinality n + 1. If so, delete a-b from C_n.
   - Let C_{n+1} be the graph that results from this procedure applied
     to each pair of variables. Continue until a value f + 1 of n is
     reached such that (beta) is not satisfied for any pair.
@@ -151,6 +151,22 @@
 
   The 1990 paper seems to imply that we should modify a copy of C_n
   becoming C_{n+1}?
+
+  Let's do an iterative algo from nodes $n_0 . . . n_{|C| - 1}$ through
+  all $l$ where, after deleting . . . no: let's copy the graph
+  (according to the 1990 paper); no: 1990 implies that you
+  destructively operate on C_n.
+
+  It's this fucking quote from the 1991 paper: "Since the algorithm is
+  continually updating C, A_C{ab} and U_C{ab} are constantly changing
+  as the algorithm progresses."
+
+  That's fine, though: let's gather the pairs of adjacent vertices and
+  operate on them; paths will change as we operate, I guess. I wonder
+  if the result of the algo is order-sensitive.
+
+  (Neural plasticity, fluid intelligence and taking the hard way out,
+  etc.)
 
   #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     file <- tempfile()
@@ -185,6 +201,9 @@
     
     nodes <- names(edges)
     
+    ## This is an exponential algorithm; can we do some kind of clever
+    ## dynamic optimization? It seems like the paths to whither could be
+    ## whitherly memoized.
     paths <- function(edges, whence, whither) {
       paths <- NULL
       ## In this case, thank God for the unmemoized nature of `visited'!
@@ -207,6 +226,96 @@
                              c("4", "1", "5", "6", "7", "2"),
                              c("4", "1", "3", "6", "7", "2"),
                              c("4", "1", "2"))))
+    
+  #+END_SRC
+
+  #+srcname: example-graphs
+  #+BEGIN_SRC R
+    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
+    gabro <- list('1'=c('2', '3', '4', '5'),
+                  '2'=c('1', '7'),
+                  '3'=c('1', '6'),
+                  '4'=c('1', '6'),
+                  '5'=c('1', '6'),
+                  '6'=c('3', '4', '5', '7'),
+                  '7'=c('2', '6'))
+    
+    cliques <- list('1'=c('2', '4', '5', '6'),
+                    '2'=c('3', '1'),
+                    '3'=c('2', '4'),
+                    '4'=c('3', '1'),
+                    '5'=c('1'),
+                    '6'=c('1'))
+    
+  #+END_SRC
+  
+  #+BEGIN_SRC R :tangle all-paths.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<example-graphs>>
+    
+    ## This is an exponential algorithm; can we do some kind of clever
+    ## dynamic optimization? It seems like the paths to whither could be
+    ## whitherly memoized.
+    paths <- function(graph, whence, whither) {
+      paths <- NULL
+      ## In this case, thank God for the unmemoized nature of `visited'!
+      ## Doesn't it resemble `amb'?
+      search <- function(whence, visited) {
+        if (whence == whither)
+          paths <<- c(list(visited), paths)
+        neighbors <- graph[[whence]]
+        for (neighbor in setdiff(neighbors, visited))
+          search(neighbor, c(visited, neighbor))
+      }
+      search(whence, whence)
+      paths
+    }
+    
+    stopifnot(identical(paths(gabro, '4', '2'),
+                        list(c("4", "6", "7", "2"),
+                             c("4", "6", "5", "1", "2"),
+                             c("4", "6", "3", "1", "2"),
+                             c("4", "1", "5", "6", "7", "2"),
+                             c("4", "1", "3", "6", "7", "2"),
+                             c("4", "1", "2"))))
+    
+    stopifnot(identical(paths(cliques, '1', '5'),
+                        list(c('1', '5'))))
+    
+  #+END_SRC
+
+
+  #+BEGIN_SRC R :tangle nodes-from.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<example-graphs>>
+    
+    cliques <- list('1'=c('2', '4', '5', '6'),
+                    '2'=c('3', '1'),
+                    '3'=c('2', '4'),
+                    '4'=c('3', '1'),
+                    '5'=c('1'),
+                    '6'=c('1'))
+    
+    ## We're essentially dealing with cliques, aren't we; or strongly
+    ## connected components?
+    nodes.from <- function(edges, whence, whither) {
+      nodes <- c()
+      ## In this case, thank God for the unmemoized nature of `visited'!
+      ## Doesn't it resemble `amb'?
+      search <- function(whence, visited) {
+        if (whence == whither)
+          nodes <<- union(visited, nodes)
+        neighbors <- edges[[whence]]
+        for (neighbor in setdiff(neighbors, visited))
+          search(neighbor, c(visited, neighbor))
+      }
+      search(whence, whence)
+      nodes
+    }
+    
+    stopifnot(nodes.from(gabro, '1', '5') ==
+              c('1', '5', '4', '6', '3', '2', '7'))
+    
+    stopifnot(nodes.from(cliques, '1', '5') ==
+              c('1', '5'))
     
   #+END_SRC
 * DONE connectionist

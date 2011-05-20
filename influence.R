@@ -57,8 +57,8 @@ prune.conditional.independencies <- function(graph, cardinality=0) {
       for (m in cardinality:length(nodes)) {
         if (m == 0) {
           if (cor.test(data[,whence], data[,whither])$p.value < 0.05) {
-            graph[[whence]] <<- setdiff(graph[[whence]], whither)
-            graph[[whither]] <<- setdiff(graph[[whither]], whence)
+            graph[[whence]] <- setdiff(graph[[whence]], whither)
+            graph[[whither]] <- setdiff(graph[[whither]], whence)
             break
           }          
         } else {
@@ -67,15 +67,15 @@ prune.conditional.independencies <- function(graph, cardinality=0) {
               resid(lm(with(data,
                             as.formula(sprintf("%s ~ %s",
                                                whence,
-                                               paste(nodes, collapse='+')))),
-                       na.action=na.exclude))
+                                               paste(nodes, collapse='+'))))))
             resid.whither <-
               resid(lm(with(data,
                             as.formula(sprintf("%s ~ %s",
                                                whither,
-                                               paste(nodes, collapse='+')))),
-                       na.action=na.exclude))
-            if (cor.test(resid.whence, resid.whither)$p.value < 0.05) {
+                                               paste(nodes, collapse='+'))))))
+            length <- min(length(resid.whither), length(resid.whence))
+            if (cor.test(sample(resid.whence, length),
+                         sample(resid.whither, length))$p.value < 0.05) {
               graph[[whence]] <<- setdiff(graph[[whence]], whither)
               graph[[whither]] <<- setdiff(graph[[whither]], whence)
               break
@@ -99,7 +99,7 @@ as.influence.graph <- function(graph, data, evidence=NULL) {
            Map(function(node)
                sprintf('(propose! \'%s)', node),
                ls(graph)))
-  correlation <- cor(data)
+  correlation <- cor(data, use='pairwise.complete.obs')
   explanations <- NULL
   contradictions <- NULL
   for.each.adjacent.pair(graph, function(graph, whence, whither) {

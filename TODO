@@ -1,7 +1,6 @@
 # -*- org -*-
 * TODO CIG in R
   #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    library(proto)
     file <- tempfile()
     a <- sample(6, 1000, TRUE)
     b <- sample(6, 1000, TRUE)
@@ -11,31 +10,14 @@
     data <- read.csv(file=file)
     cor.test(resid(lm(data$a ~ data$c)),
              resid(lm(data$b ~ data$c)))$p.value
-    edge <- proto(whence=NULL,
-                  whither=NULL,
-                  weight=0.0)
-    node <- proto(name=NULL,
-                  data=NA)
-    ## Bottom up, otherwise we have to placeholder shit.
-    ## graph <- proto(edges=c(),
-    ##                nodes=c())
-    edges <- NULL
-    nodes <-
-      Map(function(colname)
-        node$proto(name=colname,
-                   data=do.call(`$`, list(data, colname))),
-        colnames(data))
-    for (whence in nodes) {
-      for (whither in setdiff(whence, nodes)) {
-      }
-    }
-    ## This fucking problem again: either everything keys off the node
-    ## object (and we store the name in the node); or everything keys off
-    ## of the name, and we don't bother storing the name in the node.
-    ##
-    ## Actually, edges can be between names; and we don't bother storing
-    ## the data at all; the names key into the data frame.
-    Reduce(function(whence, edges) c(edge$proto(
+    nodes <- colnames(data)
+    ## Complete, bidirectional graph
+    edges <- structure(Reduce(function(node, edges)
+                              c(list(setdiff(nodes, node)), edges),
+                              nodes,
+                              c(),
+                              right=TRUE),
+                       names=nodes)
     
   #+END_SRC
 * DONE connectionist

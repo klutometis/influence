@@ -168,84 +168,26 @@
   (Neural plasticity, fluid intelligence and taking the hard way out,
   etc.)
 
-  #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    file <- tempfile()
-    a <- sample(6, 1000, TRUE)
-    b <- sample(6, 1000, TRUE)
-    c <- sample(6, 1000, TRUE)
-    d <- a
-    e <- a
-    f <- b
-    data <- cbind(a, b, c, d, e, f)
-    write.csv(x=data, file=file, row.names=FALSE)
-    data <- read.csv(file=file)
-    ## cor.test(resid(lm(data$a ~ data$c)),
-    ##          resid(lm(data$b ~ data$c)))$p.value
-    nodes <- colnames(data)
-    ## Complete, bidirectional graph
-    edges <- structure(Reduce(function(node, edges)
-                              c(list(setdiff(nodes, node)), edges),
-                              nodes,
-                              c(),
-                              right=TRUE),
-                       names=nodes)
-    
-    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
-    edges <- list('1'=c('2', '3', '4', '5'),
-                  '2'=c('1', '7'),
-                  '3'=c('1', '6'),
-                  '4'=c('1', '6'),
-                  '5'=c('1', '6'),
-                  '6'=c('3', '4', '5', '7'),
-                  '7'=c('2', '6'))
-    
-    nodes <- names(edges)
-    
-    ## This is an exponential algorithm; can we do some kind of clever
-    ## dynamic optimization? It seems like the paths to whither could be
-    ## whitherly memoized.
-    paths <- function(edges, whence, whither) {
-      paths <- NULL
-      ## In this case, thank God for the unmemoized nature of `visited'!
-      ## Doesn't it resemble `amb'?
-      search <- function(whence, visited) {
-        if (whence == whither)
-          paths <<- c(list(visited), paths)
-        neighbors <- edges[[whence]]
-        for (neighbor in setdiff(neighbors, visited))
-          search(neighbor, c(visited, neighbor))
-      }
-      search(whence, whence)
-      paths
-    }
-    
-    stopifnot(identical(paths(edges, '4', '2'),
-                        list(c("4", "6", "7", "2"),
-                             c("4", "6", "5", "1", "2"),
-                             c("4", "6", "3", "1", "2"),
-                             c("4", "1", "5", "6", "7", "2"),
-                             c("4", "1", "3", "6", "7", "2"),
-                             c("4", "1", "2"))))
-    
-  #+END_SRC
-
   #+srcname: example-graphs
   #+BEGIN_SRC R
-    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
-    gabro <- list('1'=c('2', '3', '4', '5'),
-                  '2'=c('1', '7'),
-                  '3'=c('1', '6'),
-                  '4'=c('1', '6'),
-                  '5'=c('1', '6'),
-                  '6'=c('3', '4', '5', '7'),
-                  '7'=c('2', '6'))
+    make.graph <- function(...)
+      as.environment(list(...))
     
-    cliques <- list('1'=c('2', '4', '5', '6'),
-                    '2'=c('3', '1'),
-                    '3'=c('2', '4'),
-                    '4'=c('3', '1'),
-                    '5'=c('1'),
-                    '6'=c('1'))
+    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
+    gabro <- make.graph('1'=c('2', '3', '4', '5'),
+                        '2'=c('1', '7'),
+                        '3'=c('1', '6'),
+                        '4'=c('1', '6'),
+                        '5'=c('1', '6'),
+                        '6'=c('3', '4', '5', '7'),
+                        '7'=c('2', '6'))
+    
+    cliques <- make.graph('1'=c('2', '4', '5', '6'),
+                          '2'=c('3', '1'),
+                          '3'=c('2', '4'),
+                          '4'=c('3', '1'),
+                          '5'=c('1'),
+                          '6'=c('1'))
     
   #+END_SRC
   
@@ -318,6 +260,98 @@
               c('1', '5'))
     
   #+END_SRC
+
+  #+BEGIN_SRC R :tangle all-adjacent-nodes.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(proto)
+    <<example-graphs>>
+    
+    ## Check both directions?
+    is.adjacent <- function(graph, whence, whither)
+      whither %in% graph[[whence]] || whence %in% graph[[whither]]
+    
+    ## With checks for continued adjacency, since the graph may be
+    ## mutating from under our feet.
+    for.each.adjacent.pair <- function(graph, f) {
+      for (whence in ls(graph))
+        for (whither in graph[[whence]])
+          if (is.adjacent(graph, whence, whither))
+            f(graph, whence, whither)
+    }
+    
+    ## Mutate the damn thing in the middle:
+    for.each.adjacent.pair(cliques,
+                           function(graph, whence, whither) {
+                             if (exists(whither, where=graph))
+                               rm(envir=graph, list=whither)
+                           })
+    
+    stopifnot(identical(as.list.environment(cliques),
+                        list('3'=c('2', '4'),
+                             '1'=c('2', '4', '5', '6'))))
+    
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle cig.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    file <- tempfile()
+    a <- sample(6, 1000, TRUE)
+    b <- sample(6, 1000, TRUE)
+    c <- sample(6, 1000, TRUE)
+    d <- a
+    e <- a
+    f <- b
+    data <- cbind(a, b, c, d, e, f)
+    write.csv(x=data, file=file, row.names=FALSE)
+    data <- read.csv(file=file)
+    ## cor.test(resid(lm(data$a ~ data$c)),
+    ##          resid(lm(data$b ~ data$c)))$p.value
+    nodes <- colnames(data)
+    ## Complete, bidirectional graph
+    edges <- structure(Reduce(function(node, edges)
+                              c(list(setdiff(nodes, node)), edges),
+                              nodes,
+                              c(),
+                              right=TRUE),
+                       names=nodes)
+    
+    ## From <http://ldc.usb.ve/~gabro/teaching/CI2693/lecture11.pdf>
+    edges <- list('1'=c('2', '3', '4', '5'),
+                  '2'=c('1', '7'),
+                  '3'=c('1', '6'),
+                  '4'=c('1', '6'),
+                  '5'=c('1', '6'),
+                  '6'=c('3', '4', '5', '7'),
+                  '7'=c('2', '6'))
+    
+    nodes <- names(edges)
+    
+    ## This is an exponential algorithm; can we do some kind of clever
+    ## dynamic optimization? It seems like the paths to whither could be
+    ## whitherly memoized.
+    paths <- function(edges, whence, whither) {
+      paths <- NULL
+      ## In this case, thank God for the unmemoized nature of `visited'!
+      ## Doesn't it resemble `amb'?
+      search <- function(whence, visited) {
+        if (whence == whither)
+          paths <<- c(list(visited), paths)
+        neighbors <- edges[[whence]]
+        for (neighbor in setdiff(neighbors, visited))
+          search(neighbor, c(visited, neighbor))
+      }
+      search(whence, whence)
+      paths
+    }
+    
+    stopifnot(identical(paths(edges, '4', '2'),
+                        list(c("4", "6", "7", "2"),
+                             c("4", "6", "5", "1", "2"),
+                             c("4", "6", "3", "1", "2"),
+                             c("4", "1", "5", "6", "7", "2"),
+                             c("4", "1", "3", "6", "7", "2"),
+                             c("4", "1", "2"))))
+    
+  #+END_SRC
+
 * DONE connectionist
   CLOSED: [2011-02-23 Wed 01:41]
 # <<connectionist>>

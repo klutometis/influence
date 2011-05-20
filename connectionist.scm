@@ -195,7 +195,10 @@
                              (if (proposition-evidence? proposition)
                                  (proposition-activation proposition)
                                  (let ((incoming-activation
-                                        (let ((constraints (hash-table-ref constraints name)))
+                                        (let ((constraints (hash-table-ref/default
+                                                            constraints
+                                                            name
+                                                            '())))
                                           (apply +
                                                  (map *
                                                       (map constraint-weight constraints)

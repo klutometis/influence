@@ -6,7 +6,10 @@
   for ~explain~: the last is ~explanandum~; everything up until then:
   ~explanators~.
 * TODO debug function that quotes and evaluates expressions
-* TODO CIG in R
+* DONE CIG in R
+  CLOSED: [2011-05-20 Fri 06:07]
+  - CLOSING NOTE [2011-05-20 Fri 06:08] \\
+    Hideous hacks abound: voran!
   #+BEGIN_QUOTE
   The adjacency set of a node j in graph G, denoted by ad j(G, j), are
   all nodes i which are directly connected to j by an edge (directed

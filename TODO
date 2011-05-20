@@ -326,8 +326,26 @@
         nodes <- setdiff(intersect(union(graph[[whence]], graph[[whither]]),
                                    nodes.from(graph, whence, whither)),
                          c(whence, whither))
-        if (length(nodes) >= cardinality)
+        if (length(nodes) >= cardinality) {
           there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
+          for (m in cardinality:length(nodes)) {
+            if (m == 0) {
+                if (cor.test(data[,whence], data[,whither])$p.value < 0.05) {
+                  graph[[whence]] <<- setdiff(graph[[whence]], whither)
+                  graph[[whither]] <<- setdiff(graph[[whither]], whence)
+                }          
+            } else {
+              for (subset in combn(nodes, m)) {
+                residuals <- resid(lm.fit(y=data[,c(whence, whither)],
+                                          x=cbind(1, data[,nodes])))
+                if (cor.test(residuals[,1], residuals[,2])$p.value < 0.05) {
+                  graph[[whence]] <<- setdiff(graph[[whence]], whither)
+                  graph[[whither]] <<- setdiff(graph[[whither]], whence)
+                }
+              }
+            }
+          }
+        }
       })
     
       if (there.exist.adjacent.nodes.of.sufficient.cardinality)
@@ -337,6 +355,7 @@
     }
     
     prune.conditional.independencies(graph)
+    as.list(graph)
     
   #+END_SRC
 

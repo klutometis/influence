@@ -71,6 +71,18 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
             break
           }          
         } else {
+          ## Does failure of lm or cor.test to return imply an
+          ## orthogonality such that we can break the dependence? That
+          ## would be nice.
+          ##
+          ## lapply-based parallelization here could create a
+          ## combination -> indepedence map, which we could then use
+          ## to break links.
+          ##
+          ## Is it problematic, though, that we mutate the graph in
+          ## real-time? Possibly.
+          ##
+          ## Let's throw a big machine at it and see what happens.
           for (subset in combn(nodes, m)) {
             resid.whence <-
               tryCatch(resid(lm(with(data,
@@ -108,6 +120,9 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
             ## lm.fit(y=cor(data[,c(whence, whither)]),
             ##        x=cor(data[,nodes]))
             length <- min(length(resid.whither), length(resid.whence))
+
+            ## We might be able to fuck with `method' and `exact' here
+            ## to avoid the NA p-value problem.
             p.value <- cor.test(sample(resid.whence, length),
                                 sample(resid.whither, length))$p.value
 

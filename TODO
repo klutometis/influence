@@ -1,4 +1,8 @@
 # -*- org -*-
+* TODO parallelization
+  - http://benreuven.com/udiwiki/index.php?title=R_with_Amazon_MapReduce
+  - http://jeffreybreen.wordpress.com/2011/01/10/segue-r-to-amazon-elastic-mapreduce-hadoop/
+  - http://code.google.com/p/segue/
 * TODO ~explain~, ~contradict~, ~evidence~ should be macros
   none of this fragile list stuff, and need to escape; also: ~propose~
   is superfluous: propose new nodes upon explanation, etc.

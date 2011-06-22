@@ -1,3 +1,6 @@
+library(debug)
+library(stats)
+
 make.graph <- function(...)
   structure(as.environment(list(...)),
             class='graph')
@@ -43,15 +46,21 @@ for.each.adjacent.pair <- function(graph, f) {
         f(graph, whence, whither)
 }
 
-prune.conditional.independencies <- function(graph, cardinality=0) {
+prune.conditional.independencies <- function(graph, data, cardinality=0) {
   there.exist.adjacent.nodes.of.sufficient.cardinality <- FALSE
 
   for.each.adjacent.pair(graph, function(graph, whence, whither) {
-    nodes <- setdiff(intersect(union(graph[[whence]], graph[[whither]]),
-                               nodes.from(graph, whence, whither)),
-                     c(whence, whither))
-    ## nodes <- setdiff(union(graph[[whence]], graph[[whither]]),
+    debug(cardinality, whence, whither)
+    ## This version calculates all paths from whence to whither:
+    ## 
+    ## nodes <- setdiff(intersect(union(graph[[whence]], graph[[whither]]),
+    ##                            nodes.from(graph, whence, whither)),
     ##                  c(whence, whither))
+    ##
+    ## This is the Kalisch-version, dealing only with adjacency:
+    ## 
+    nodes <- setdiff(union(graph[[whence]], graph[[whither]]),
+                     c(whence, whither))
     if (length(nodes) >= cardinality) {
       there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
       for (m in cardinality:length(nodes)) {
@@ -64,18 +73,52 @@ prune.conditional.independencies <- function(graph, cardinality=0) {
         } else {
           for (subset in combn(nodes, m)) {
             resid.whence <-
-              resid(lm(with(data,
-                            as.formula(sprintf("%s ~ %s",
-                                               whence,
-                                               paste(nodes, collapse='+'))))))
+              tryCatch(resid(lm(with(data,
+                                     as.formula(sprintf("%s ~ %s",
+                                                        whence,
+                                                        paste(nodes, collapse='+')))))),
+                       error=function(e) {
+                         warning(sprintf('lm failed: %s; breaking.',
+                                         conditionMessage(e)),
+                                 immediate.=TRUE)
+                         NA
+                       });
+            if (is.na(resid.whence))
+              break
+            
             resid.whither <-
-              resid(lm(with(data,
-                            as.formula(sprintf("%s ~ %s",
-                                               whither,
-                                               paste(nodes, collapse='+'))))))
+              tryCatch(resid(lm(with(data,
+                                     as.formula(sprintf("%s ~ %s",
+                                                        whither,
+                                                        paste(nodes, collapse='+')))))),
+                       error=function(e) {
+                         warning(sprintf('lm failed: %s; breaking.',
+                                         conditionMessage(e)),
+                                 immediate.=TRUE)
+                         NA
+                       });
+            if (is.na(resid.whither))
+              break
+            
+            ## Can't yet get these to work:
+            ## 
+            ## lm.fit(y=as.matrix(data)[,c(whence, whither)],
+            ##        x=cbind(1, as.matrix(data[,nodes])))
+            ## 
+            ## lm.fit(y=cor(data[,c(whence, whither)]),
+            ##        x=cor(data[,nodes]))
             length <- min(length(resid.whither), length(resid.whence))
-            if (cor.test(sample(resid.whence, length),
-                         sample(resid.whither, length))$p.value < 0.05) {
+            p.value <- cor.test(sample(resid.whence, length),
+                                sample(resid.whither, length))$p.value
+
+            ## What are we saying here? I.e. should we delete the edge
+            ## or not?
+            if (is.na(p.value)) {
+              warning('p.value is NA: breaking.', immediate.=TRUE)
+              break
+            }
+
+            if (!is.na(p.value) && p.value < 0.05) {
               graph[[whence]] <<- setdiff(graph[[whence]], whither)
               graph[[whither]] <<- setdiff(graph[[whither]], whence)
               break
@@ -87,7 +130,7 @@ prune.conditional.independencies <- function(graph, cardinality=0) {
   })
 
   if (there.exist.adjacent.nodes.of.sufficient.cardinality)
-    prune.conditional.independencies(graph, cardinality + 1)
+    prune.conditional.independencies(graph, data, cardinality + 1)
 }
 
 as.influence <- function(x, ...)

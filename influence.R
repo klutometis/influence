@@ -123,8 +123,18 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
 
             ## We might be able to fuck with `method' and `exact' here
             ## to avoid the NA p-value problem.
-            p.value <- cor.test(sample(resid.whence, length),
-                                sample(resid.whither, length))$p.value
+            ##
+            ## We have another problem, though, of insufficient finite
+            ## observations roughly 10 mins in.
+            p.value <-
+              tryCatch(cor.test(sample(resid.whence, length),
+                                sample(resid.whither, length))$p.value,
+                       error=function(e) {
+                         warning(sprintf('cor.test failed: %s; breaking.',
+                                         conditionMessage(e)),
+                                 immediate.=TRUE)
+                         NA
+                       });
 
             ## What are we saying here? I.e. should we delete the edge
             ## or not?

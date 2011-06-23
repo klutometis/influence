@@ -1,4 +1,30 @@
 # -*- org -*-
+* DONE has.adjacency
+  CLOSED: [2011-06-22 Wed 18:04]
+  #+BEGIN_SRC R :tangle has-adjacency.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(debug)
+    source('example-graphs.R')
+    
+    make.graph <- function(...)
+      structure(as.environment(list(...)),
+                class='graph')
+    
+    cliques.with.orphans <- make.graph('1'=c('2', '4', '5', '6'),
+                                       '2'=c('3', '1'),
+                                       '3'=c('2', '4'),
+                                       '4'=c('3', '1'),
+                                       '5'=c('1'),
+                                       '6'=c('1', '7'),
+                                       '7'=NULL,
+                                       '8'=NULL)
+    
+    has.adjacency <- function(graph, node)
+      !is.null(graph[[node]]) || node %in% Reduce(c, graph)
+    
+    stopifnot(has.adjacency(cliques.with.orphans, '6'))
+    stopifnot(has.adjacency(cliques.with.orphans, '7'))
+    stopifnot(!has.adjacency(cliques.with.orphans, '8'))
+  #+END_SRC
 * TODO parallelization
   - http://benreuven.com/udiwiki/index.php?title=R_with_Amazon_MapReduce
   - http://jeffreybreen.wordpress.com/2011/01/10/segue-r-to-amazon-elastic-mapreduce-hadoop/

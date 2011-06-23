@@ -1,3 +1,5 @@
+library(functional)
+library(Combinations)
 library(debug)
 library(stats)
 
@@ -37,6 +39,9 @@ make.complete.undirected.graph <- function(nodes)
 is.adjacent <- function(graph, whence, whither)
   whither %in% graph[[whence]] || whence %in% graph[[whither]]
 
+has.adjacency <- function(graph, node)
+  length(graph[[node]]) > 0 || node %in% Reduce(c, graph)
+
 ## With checks for continued adjacency, since the graph may be
 ## mutating from under our feet.
 for.each.adjacent.pair <- function(graph, f) {
@@ -50,6 +55,7 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
   there.exist.adjacent.nodes.of.sufficient.cardinality <- FALSE
 
   for.each.adjacent.pair(graph, function(graph, whence, whither) {
+    callCC(function(k) {
     debug(cardinality, whence, whither)
     ## This version calculates all paths from whence to whither:
     ## 
@@ -62,9 +68,12 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
     nodes <- setdiff(union(graph[[whence]], graph[[whither]]),
                      c(whence, whither))
     if (length(nodes) >= cardinality) {
+      ## debug(1)
       there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
       for (m in cardinality:length(nodes)) {
+        ## debug(2)
         if (m == 0) {
+          ## debug(2.5)
           if (cor.test(data[,whence], data[,whither])$p.value < 0.05) {
             graph[[whence]] <- setdiff(graph[[whence]], whither)
             graph[[whither]] <- setdiff(graph[[whither]], whence)
@@ -83,35 +92,71 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
           ## real-time? Possibly.
           ##
           ## Let's throw a big machine at it and see what happens.
-          for (subset in combn(nodes, m)) {
+          ## debug(2.9)
+          ## debug(nodes, m)
+          ## Aha: this becomes prohibitively expensive; can we stream
+          ## this?
+          ## debug(combn(nodes, m, FUN=function(shit) NULL, simplify=FALSE))
+          ## Need some kind of combinatorial for-each that discards
+          ## its value.
+          ##
+          ## Let this be a lesson, though: don't gather where we're
+          ## only shooting for side-effect.
+          ##
+          ## Combinadics:
+          ## http://www.markmfredrickson.com/thoughts/2010-08-06-combinadics-in-r.html
+          ## http://stats.stackexchange.com/questions/1286/how-can-i-obtain-some-of-all-possible-combinations-in-r
+          ## http://compprog.wordpress.com/2007/10/17/generating-combinations-1/
+          ## https://stat.ethz.ch/pipermail/r-help/2006-October/115012.html
+          ## http://www.omegahat.org/Combinations/
+          debug('YYYYYYYYYY', nodes, m)
+          ## callCC(function(k)
+                 combinations(length(nodes), m, function(x) {
+          ## for (subset in combn(nodes, m)) {
+            subset <- nodes[as.logical(x)]
+            ## debug(subset)
+            ## debug(subset)
+            ## debug(3)
             resid.whence <-
               tryCatch(resid(lm(with(data,
                                      as.formula(sprintf("%s ~ %s",
                                                         whence,
-                                                        paste(nodes, collapse='+')))))),
+                                                        paste(subset, collapse='+')))))),
                        error=function(e) {
-                         warning(sprintf('lm failed: %s; breaking.',
-                                         conditionMessage(e)),
-                                 immediate.=TRUE)
+                         ## warning(sprintf('lm failed on whence: %s; breaking.',
+                         ##                 conditionMessage(e)),
+                         ##         immediate.=TRUE)
                          NA
                        });
-            if (is.na(resid.whence))
-              break
+            if (is.na(resid.whence)) {
+              ## debug('harro')
+              ## graph[[whence]] <<- setdiff(graph[[whence]], whither)
+              ## graph[[whither]] <<- setdiff(graph[[whither]], whence)
+              k(NULL)
+              return()
+            }
             
+            ## debug(4)
             resid.whither <-
               tryCatch(resid(lm(with(data,
                                      as.formula(sprintf("%s ~ %s",
                                                         whither,
-                                                        paste(nodes, collapse='+')))))),
+                                                        paste(subset, collapse='+')))))),
                        error=function(e) {
-                         warning(sprintf('lm failed: %s; breaking.',
-                                         conditionMessage(e)),
-                                 immediate.=TRUE)
+                         ## warning(sprintf('lm failed on whither: %s; breaking.',
+                         ##                 conditionMessage(e)),
+                         ##         immediate.=TRUE)
                          NA
                        });
-            if (is.na(resid.whither))
-              break
+            if (is.na(resid.whither)) {
+              ## debug('harro')
+              ## graph[[whence]] <<- setdiff(graph[[whence]], whither)
+              ## graph[[whither]] <<- setdiff(graph[[whither]], whence)
+              k(NULL)
+              return()
+            }
             
+            ## debug(5)
             ## Can't yet get these to work:
             ## 
             ## lm.fit(y=as.matrix(data)[,c(whence, whither)],
@@ -139,34 +184,108 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
             ## What are we saying here? I.e. should we delete the edge
             ## or not?
             if (is.na(p.value)) {
-              warning('p.value is NA: breaking.', immediate.=TRUE)
-              break
-            }
-
-            if (!is.na(p.value) && p.value < 0.05) {
+              ## warning('p.value is NA: breaking.', immediate.=TRUE)
+              ## graph[[whence]] <<- setdiff(graph[[whence]], whither)
+              ## graph[[whither]] <<- setdiff(graph[[whither]], whence)
+              k(NULL)
+            } else if (p.value < 0.05) {
+              debug('XXXXXXXXXXXXX', whence, whither)
               graph[[whence]] <<- setdiff(graph[[whence]], whither)
               graph[[whither]] <<- setdiff(graph[[whither]], whence)
-              break
+              ## XXX: need to break out of combinations here!
+              k(NULL)
             }
-          }
+          })
+          ## )
         }
       }
     }
-  })
+  })})
+    if (there.exist.adjacent.nodes.of.sufficient.cardinality)
+      prune.conditional.independencies(graph, data, cardinality + 1)
+}
 
+prune.conditional.independencies <- function(graph, data, cardinality=0) {
+  ## Replace this with a callCC?
+  there.exist.adjacent.nodes.of.sufficient.cardinality <- FALSE
+
+  for.each.adjacent.pair(graph, function(graph, whence, whither) {
+    callCC(function(k) {
+      debug(cardinality, whence, whither)
+      ## nodes <- setdiff(intersect(union(graph[[whence]], graph[[whither]]),
+      ##                            nodes.from(graph, whence, whither)),
+      ##                  c(whence, whither))
+      nodes <- setdiff(union(graph[[whence]], graph[[whither]]),
+                       c(whence, whither))
+      if (length(nodes) >= cardinality) {
+        there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
+        for (m in cardinality:length(nodes)) {
+          if (m == 0) {
+            p.value <-
+              tryCatch(cor.test(data[,whence], data[,whither])$p.value,
+                       error=function(e) NA)
+            if (!is.na(p.value) && p.value < 0.01) {
+              debug(p.value)
+              graph[[whence]] <- setdiff(graph[[whence]], whither)
+              graph[[whither]] <- setdiff(graph[[whither]], whence)
+              k(NULL)
+            }
+          } else {
+            combinations(length(nodes), m, function(x) {
+              subset <- nodes[as.logical(x)]
+              resid.whence <-
+                tryCatch(resid(lm(with(data,
+                                       as.formula(sprintf("%s ~ %s",
+                                                          whence,
+                                                          paste(subset, collapse='+')))))),
+                         error=function(e) NA);
+              if (is.na(resid.whence))
+                return()
+
+              resid.whither <-
+                tryCatch(resid(lm(with(data,
+                                       as.formula(sprintf("%s ~ %s",
+                                                          whither,
+                                                          paste(subset, collapse='+')))))),
+                         error=function(e) NA);
+              if (is.na(resid.whither))
+                return()
+              
+              length <- min(length(resid.whither), length(resid.whence))
+
+              p.value <-
+                tryCatch(cor.test(sample(resid.whence, length),
+                                  sample(resid.whither, length))$p.value,
+                         error=function(e) NA);
+
+              if (!is.na(p.value) && p.value < 0.01) {
+                debug(p.value, subset)
+                graph[[whence]] <<- setdiff(graph[[whence]], whither)
+                graph[[whither]] <<- setdiff(graph[[whither]], whence)
+                k(NULL)
+              }
+            })
+          }
+        }
+      }
+    })})
+  
   if (there.exist.adjacent.nodes.of.sufficient.cardinality)
     prune.conditional.independencies(graph, data, cardinality + 1)
 }
-
+                         
 as.influence <- function(x, ...)
   UseMethod('as.influence')
 
 as.influence.graph <- function(graph, data, evidence=NULL) {
+  nodes <- union(Filter(Curry(has.adjacency, graph=graph),
+                        ls(graph)),
+                 evidence)
   proposals <-
     Reduce(paste,
            Map(function(node)
                sprintf('(propose! \'%s)', node),
-               ls(graph)))
+               nodes))
   correlation <- cor(data, use='pairwise.complete.obs')
   explanations <- NULL
   contradictions <- NULL

@@ -1,4 +1,8 @@
 # -*- org -*-
+* TODO spreading activation doesn't obey conservation of energy
+* TODO evidence is bizarre: conditioning variables?
+* TODO solutions are stochastic
+  since we probabalistically recreate the correlation table (pairwise.complete.obs)?
 * TODO conditional independence by m-wise regression
   should we sample the space? especially where the data is
   pathologically empty, can try $n!$ combinations.

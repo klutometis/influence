@@ -21,5 +21,6 @@
                 (format "~a.gif" output)
                 (format "~a (animated)" output))
                (make-time-series-processor
-                (format "~a-series.png" output))))
+                (format "~a-series.png" output)
+                (format "~a (time series)" output))))
       output))))

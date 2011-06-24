@@ -123,7 +123,7 @@
                        find ,temp-dir -name \'*.gif\' \| sort -r ")"
                        -loop 0 ,animation)))))))
 
-(define (make-time-series-processor time-series)
+(define (make-time-series-processor time-series title)
   (let ((time-series-data (create-temporary-file)))
     (make-processor
      process:
@@ -139,8 +139,9 @@
      (lambda (problem)
        (let ((propositions (problem-propositions problem))
              (document "set term pngcairo size 1024,768 font \",8\" enhanced crop;
-                         set output \"~a\";
-                         plot ~a~%"))
+                        set title \"~a\";
+                        set output \"~a\";
+                        plot ~a~%"))
          (let ((elements
                 (loop ((for name (in-list (hash-table-keys propositions)))
                        (for proposition
@@ -158,6 +159,7 @@
              (format
               out
               document
+              title
               time-series
               (string-join elements ", "))
              (close-output-port out))))))))

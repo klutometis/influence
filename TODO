@@ -1,4 +1,17 @@
 # -*- org -*-
+* TODO bug? orthogonal sections of the graph receive energy
+  even if they're not connected to evidence. some kind of feed-back
+  loop?
+
+  It's not a bug, I suppose, if spreading activation doesn't obey the
+  second law of thermodynamics.
+
+  Is that a bug? It's contrary to our physical intuition; but I'm not
+  sure connectionist makes any claims about the conservation of
+  energy.
+
+  Interesting structures are orthogonal to evidence (hooked up to
+  conditions).
 * TODO conditional independence by m-wise regression
   should we sample the space? especially where the data is
   pathologically empty, can try $n!$ combinations.
@@ -11,6 +24,12 @@
     source('influence.R')
     data <- read.csv('iran.csv',
                      na.string=TRUE)
+    
+    debug(
+          levels(data$condition),
+          levels(data$svsplit),
+          levels(as.factor(data$SVNumerical))
+          )
     
     ## data$age <-
     ##   data$Approval <-
@@ -28,20 +47,110 @@
                       flag=as.numeric(flag),
                       gender=as.numeric(gender))
     
-    debug(data,
-          data[which(with(data, condition == 2)),],
-          levels(as.factor(data$svsplit)),
+    debug(
           levels(as.factor(data$condition)),
-          levels(as.factor(data$SVNumerical)),
-          NULL)
+          levels(as.factor(data$svsplit)),
+          levels(as.factor(data$SVNumerical))
+          )
     
-    run.influence.experiment('iran-carrot',
+    evidence <- c('condition', 'svsplit', 'SVNumerical')
+    alpha <- 0.05
+    
+    run.influence.experiment('iran-carrot-energy-profane-values',
                              data[which(with(data,
-                                             svsplit == 2 &
                                              condition == 2 &
+                                             svsplit == 2 &
                                              SVNumerical == 0)),],
-                             c('condition', 'svsplit', 'SVNumerical'),
-                             0.05)
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-carrot-weapon-profane-values',
+                             data[which(with(data,
+                                             condition == 2 &
+                                             svsplit == 3 &
+                                             SVNumerical == 0)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-neutral-energy-profane-values',
+                             data[which(with(data,
+                                             condition == 3 &
+                                             svsplit == 2 &
+                                             SVNumerical == 0)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-neutral-weapon-profane-values',
+                             data[which(with(data,
+                                             condition == 3 &
+                                             svsplit == 3 &
+                                             SVNumerical == 0)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-stick-energy-profane-values',
+                             data[which(with(data,
+                                             condition == 4 &
+                                             svsplit == 2 &
+                                             SVNumerical == 0)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-stick-weapon-profane-values',
+                             data[which(with(data,
+                                             condition == 4 &
+                                             svsplit == 3 &
+                                             SVNumerical == 0)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-carrot-energy-sacred-values',
+                             data[which(with(data,
+                                             condition == 2 &
+                                             svsplit == 2 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-carrot-weapon-sacred-values',
+                             data[which(with(data,
+                                             condition == 2 &
+                                             svsplit == 3 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-neutral-energy-sacred-values',
+                             data[which(with(data,
+                                             condition == 3 &
+                                             svsplit == 2 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-neutral-weapon-sacred-values',
+                             data[which(with(data,
+                                             condition == 3 &
+                                             svsplit == 3 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-stick-energy-sacred-values',
+                             data[which(with(data,
+                                             condition == 4 &
+                                             svsplit == 2 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
+    
+    run.influence.experiment('iran-stick-weapon-sacred-values',
+                             data[which(with(data,
+                                             condition == 4 &
+                                             svsplit == 3 &
+                                             SVNumerical == 1)),],
+                             evidence,
+                             alpha)
     
   #+END_SRC
 * TODO conditions

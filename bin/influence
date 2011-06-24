@@ -18,6 +18,8 @@
      (display-problem/dot
       (solve! (connectionist
                (make-animation-processor
-                (format "~a.gif" output))
+                (format "~a.gif" output)
+                (format "~a (animated)" output))
                (make-time-series-processor
-                (format "~a-series.png" output))))))))
+                (format "~a-series.png" output))))
+      output))))

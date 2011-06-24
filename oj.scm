@@ -17,6 +17,7 @@
    (propose! 'edta-on-sock)
    (propose! 'drug-dealers-killed-nicole)
    (propose! 'the-lapd-framed-oj)
+   (propose! 'harro)
 
    (explain! '(oj-beat-nicole oj-killed-nicole) 'oj-abusive)
    (explain! '(blood-on-sock
@@ -33,14 +34,16 @@
                   the-lapd-framed-oj)
                 'oj-killed-nicole)
 
-   (evidence! '(oj-beat-nicole
-                nicole-and-ron-were-killed
-                blood-on-sock
-                blood-in-ojs-car
-                bloody-glove
-                bloody-gate
-                fuhrman-lied
-                edta-on-sock)) 
+   ;; (evidence! '(oj-beat-nicole
+   ;;              nicole-and-ron-were-killed
+   ;;              blood-on-sock
+   ;;              blood-in-ojs-car
+   ;;              bloody-glove
+   ;;              bloody-gate
+   ;;              fuhrman-lied
+   ;;              edta-on-sock)) 
+
+   (evidence! '(harro))
 
    (display-problem/dot
     (solve! (connectionist

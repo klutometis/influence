@@ -54,11 +54,9 @@
    whither)
 
  (defstruct problem
-   (propositions
-    ;; should we rethink this at some point?
-    (let ((propositions (make-hash-table eq? hash-by-identity))) 
-      (hash-table-set! propositions 'evidence evidence)
-      propositions))
+   ;; We'll make the evidence node lazily, since some applications may
+   ;; not use it (even though it's axiomatic).
+   (propositions (make-hash-table eq? hash-by-identity))
    (constraints (make-hash-table eq? hash-by-identity)))
 
  (define current-problem (make-parameter (make-problem)))
@@ -119,6 +117,10 @@
     ((evidenced)
      (evidence! (current-problem) evidenced))
     ((problem evidenced)
+     (let ((propositions (problem-propositions problem)))
+       ;; Let's define the evidence node lazily.
+       (if (not (hash-table-exists? propositions 'evidence))
+           (hash-table-set! propositions 'evidence evidence)))
      (explain! evidenced 'evidence))))
 
  (define propose!

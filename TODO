@@ -1,4 +1,60 @@
 # -*- org -*-
+* TODO conditional independence by m-wise regression
+  should we sample the space? especially where the data is
+  pathologically empty, can try $n!$ combinations.
+
+  in order to sample the subsets, though, we'd have to use $combn$;
+  could it be a data-quality issue?
+* TODO iran
+  #+BEGIN_SRC R :tangle iran.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(debug)
+    source('influence.R')
+    data <- read.csv('iran.csv',
+                     na.string=TRUE)
+    
+    data$age <-
+      data$Approval <-
+      data$clossnessToIranianIdendity <-
+      data$clossnessToReligiousIdendity <- 
+      NULL
+    
+    data <- transform(data,
+                      insideOrOutside=as.numeric(insideOrOutside),
+                      svsplit=as.numeric(svsplit),
+                      condition=as.numeric(condition),
+                      IR=as.numeric(IR),
+                      Lion=as.numeric(Lion),
+                      Simple=as.numeric(Simple),
+                      flag=as.numeric(flag),
+                      gender=as.numeric(gender))
+    
+    debug(data,
+          data[which(with(data, condition == 2)),],
+          levels(as.factor(data$svsplit)),
+          levels(as.factor(data$condition)),
+          levels(as.factor(data$SVNumerical)),
+          NULL)
+    
+    run.influence.experiment('iran-carrot',
+                             data[which(with(data,
+                                             svsplit == 2 &
+                                             condition == 2 &
+                                             SVNumerical == 0)),],
+                             c('condition', 'svsplit', 'SVNumerical'),
+                             0.01)
+    
+  #+END_SRC
+* TODO conditions
+  #+BEGIN_SRC R :tangle conditions.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(debug)
+    data <- read.csv('iran.csv', na.string=TRUE)
+    debug(data,
+          data$condition,
+          data[which(with(data, condition == 'carrot')),],
+          subset(data, condition='carrot'),
+          NULL)
+    
+  #+END_SRC
 * DONE has.adjacency
   CLOSED: [2011-06-22 Wed 18:04]
   #+BEGIN_SRC R :tangle has-adjacency.R :shebang #!/usr/local/bin/R --vanilla --slave -f

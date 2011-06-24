@@ -205,7 +205,10 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
       prune.conditional.independencies(graph, data, cardinality + 1)
 }
 
-prune.conditional.independencies <- function(graph, data, cardinality=0) {
+prune.conditional.independencies <- function(graph,
+                                             data,
+                                             alpha=0.05,
+                                             cardinality=0) {
   ## Replace this with a callCC?
   there.exist.adjacent.nodes.of.sufficient.cardinality <- FALSE
 
@@ -217,28 +220,62 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
       ##                  c(whence, whither))
       nodes <- setdiff(union(graph[[whence]], graph[[whither]]),
                        c(whence, whither))
+      ## Damn: we need to recalculate nodes after every change in the
+      ## graph. We do that, don't we (cf. callCC)?
+      ##
+      ## The other problem is that, after deleting an edge,
+      ## for.each.adjacent.pair should be adjusted; how to prevent it
+      ## from starting from scratch, though?
+      ##
+      ## That's solved, at least, by the is.adjacent check in
+      ## for.each.adjacent.pair (whew!).
+      ##
+      ## We might have to sample this fucking space and resort to
+      ## combinadics, after all.
+      ##
+      ## Or, as a heuristic, can we specify some maximum
+      ## subset-cardinality?
+      ##
+      ## Why not give the choice between
+      ## sampling/max-subset-cardinality? They're both a form of
+      ## sampling, aren't they?
+      ##
+      ## Memoization?
       if (length(nodes) >= cardinality) {
         there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
         for (m in cardinality:length(nodes)) {
           if (m == 0) {
             p.value <-
               tryCatch(cor.test(data[,whence], data[,whither])$p.value,
-                       error=function(e) NA)
-            if (!is.na(p.value) && p.value < 0.01) {
+                       error=function(e) {
+                         warning(sprintf('cor.test failed: %s',
+                                         conditionMessage(e)),
+                                 immediate.=TRUE)
+                         NA
+                       })
+            if (!is.na(p.value) && p.value < alpha) {
               debug(p.value)
               graph[[whence]] <- setdiff(graph[[whence]], whither)
               graph[[whither]] <- setdiff(graph[[whither]], whence)
               k(NULL)
             }
           } else {
+            debug(m, length(nodes))
             combinations(length(nodes), m, function(x) {
               subset <- nodes[as.logical(x)]
+              ## debug(subset, vec.length=20)
               resid.whence <-
                 tryCatch(resid(lm(with(data,
                                        as.formula(sprintf("%s ~ %s",
                                                           whence,
                                                           paste(subset, collapse='+')))))),
-                         error=function(e) NA);
+                         error=function(e) {
+                           warning(sprintf('lm failed whence (%s): %s',
+                                           whence,
+                                           conditionMessage(e)),
+                                   immediate.=TRUE)
+                           NA
+                         });
               if (is.na(resid.whence))
                 return()
 
@@ -247,7 +284,13 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
                                        as.formula(sprintf("%s ~ %s",
                                                           whither,
                                                           paste(subset, collapse='+')))))),
-                         error=function(e) NA);
+                         error=function(e) {
+                           warning(sprintf('lm failed whither (%s): %s',
+                                           whither,
+                                           conditionMessage(e)),
+                                   immediate.=TRUE)
+                           NA
+                         });
               if (is.na(resid.whither))
                 return()
               
@@ -256,9 +299,14 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
               p.value <-
                 tryCatch(cor.test(sample(resid.whence, length),
                                   sample(resid.whither, length))$p.value,
-                         error=function(e) NA);
+                         error=function(e) {
+                           warning(sprintf('cor.test failed: %s',
+                                           conditionMessage(e)),
+                                   immediate.=TRUE)
+                           NA
+                         });
 
-              if (!is.na(p.value) && p.value < 0.01) {
+              if (!is.na(p.value) && p.value < alpha) {
                 debug(p.value, subset)
                 graph[[whence]] <<- setdiff(graph[[whence]], whither)
                 graph[[whither]] <<- setdiff(graph[[whither]], whence)
@@ -271,7 +319,7 @@ prune.conditional.independencies <- function(graph, data, cardinality=0) {
     })})
   
   if (there.exist.adjacent.nodes.of.sufficient.cardinality)
-    prune.conditional.independencies(graph, data, cardinality + 1)
+    prune.conditional.independencies(graph, data, alpha, cardinality + 1)
 }
                          
 as.influence <- function(x, ...)
@@ -325,3 +373,10 @@ pipe.to.influence <- function(graph, data, output, evidence=NULL) {
       file=influence)
   close(influence)
 }
+
+run.influence.experiment <-
+  function(experiment, data, evidence, alpha=0.05) {
+    graph <- make.complete.undirected.graph(names(data))
+    prune.conditional.independencies(graph, data, alpha)
+    pipe.to.influence(graph, data, experiment, evidence)
+  }

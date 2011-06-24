@@ -245,6 +245,8 @@ prune.conditional.independencies <- function(graph,
       ## k(NULL) on lm-failure is particularly pessimistic; we can
       ## probably afford to do some sampling here, since some
       ## lm-failures still result in pruning.
+      ##
+      ## Would we could fucking prune the lm-failures.
       if (length(nodes) >= cardinality) {
         there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
         for (m in cardinality:length(nodes)) {

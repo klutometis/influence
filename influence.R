@@ -261,7 +261,7 @@ prune.conditional.independencies <- function(graph,
                                  immediate.=TRUE)
                          NA
                        })
-            if (!is.na(p.value) && p.value < alpha) {
+            if (is.na(p.value) || p.value < alpha) {
               debug(p.value)
               graph[[whence]] <- setdiff(graph[[whence]], whither)
               graph[[whither]] <- setdiff(graph[[whither]], whence)
@@ -284,9 +284,11 @@ prune.conditional.independencies <- function(graph,
                                    immediate.=TRUE)
                            NA
                          });
-              if (is.na(resid.whence))
-                ## return()
+              if (is.na(resid.whence)) {
+                ## graph[[whence]] <- setdiff(graph[[whence]], whither)
+                ## graph[[whither]] <- setdiff(graph[[whither]], whence)
                 k(NULL)
+              }
 
               resid.whither <-
                 tryCatch(resid(lm(with(data,
@@ -300,9 +302,11 @@ prune.conditional.independencies <- function(graph,
                                    immediate.=TRUE)
                            NA
                          });
-              if (is.na(resid.whither))
-                ## return()
+              if (is.na(resid.whither)) {
+                ## graph[[whence]] <- setdiff(graph[[whence]], whither)
+                ## graph[[whither]] <- setdiff(graph[[whither]], whence)
                 k(NULL)
+              }
               
               length <- min(length(resid.whither), length(resid.whence))
 
@@ -316,7 +320,7 @@ prune.conditional.independencies <- function(graph,
                            NA
                          });
 
-              if (!is.na(p.value) && p.value < alpha) {
+              if (is.na(p.value) || p.value < alpha) {
                 debug(p.value, subset)
                 graph[[whence]] <<- setdiff(graph[[whence]], whither)
                 graph[[whither]] <<- setdiff(graph[[whither]], whence)
@@ -378,7 +382,8 @@ as.influence.graph <- function(graph, data, evidence=NULL) {
 }
 
 pipe.to.influence <- function(graph, data, output, evidence=NULL) {
-  influence <- pipe(sprintf('influence %s', output))
+  influence <-
+    pipe(sprintf('influence %s | dot -Tpng -o %s.png', output, output))
   cat(as.influence(graph, data, evidence),
       file=influence)
   close(influence)

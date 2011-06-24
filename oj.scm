@@ -34,19 +34,17 @@
                   the-lapd-framed-oj)
                 'oj-killed-nicole)
 
-   ;; (evidence! '(oj-beat-nicole
-   ;;              nicole-and-ron-were-killed
-   ;;              blood-on-sock
-   ;;              blood-in-ojs-car
-   ;;              bloody-glove
-   ;;              bloody-gate
-   ;;              fuhrman-lied
-   ;;              edta-on-sock)) 
-
-   (evidence! '(harro))
+   (evidence! '(oj-beat-nicole
+                nicole-and-ron-were-killed
+                blood-on-sock
+                blood-in-ojs-car
+                bloody-glove
+                bloody-gate
+                fuhrman-lied
+                edta-on-sock)) 
 
    (display-problem/dot
     (solve! (connectionist
              (make-animation-processor "oj.gif" "Animated OJ")
-             (make-time-series-processor "oj-series.png")))
+             (make-time-series-processor "oj-series.png" "OJ Time Series")))
     "OJ")))

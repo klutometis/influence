@@ -12,11 +12,11 @@
     data <- read.csv('iran.csv',
                      na.string=TRUE)
     
-    data$age <-
-      data$Approval <-
-      data$clossnessToIranianIdendity <-
-      data$clossnessToReligiousIdendity <- 
-      NULL
+    ## data$age <-
+    ##   data$Approval <-
+    ##   data$clossnessToIranianIdendity <-
+    ##   data$clossnessToReligiousIdendity <- 
+    ##   NULL
     
     data <- transform(data,
                       insideOrOutside=as.numeric(insideOrOutside),
@@ -41,7 +41,7 @@
                                              condition == 2 &
                                              SVNumerical == 0)),],
                              c('condition', 'svsplit', 'SVNumerical'),
-                             0.01)
+                             0.05)
     
   #+END_SRC
 * TODO conditions

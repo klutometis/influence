@@ -241,6 +241,10 @@ prune.conditional.independencies <- function(graph,
       ## sampling, aren't they?
       ##
       ## Memoization?
+      ##
+      ## k(NULL) on lm-failure is particularly pessimistic; we can
+      ## probably afford to do some sampling here, since some
+      ## lm-failures still result in pruning.
       if (length(nodes) >= cardinality) {
         there.exist.adjacent.nodes.of.sufficient.cardinality <<- TRUE
         for (m in cardinality:length(nodes)) {
@@ -277,7 +281,8 @@ prune.conditional.independencies <- function(graph,
                            NA
                          });
               if (is.na(resid.whence))
-                return()
+                ## return()
+                k(NULL)
 
               resid.whither <-
                 tryCatch(resid(lm(with(data,
@@ -292,7 +297,8 @@ prune.conditional.independencies <- function(graph,
                            NA
                          });
               if (is.na(resid.whither))
-                return()
+                ## return()
+                k(NULL)
               
               length <- min(length(resid.whither), length(resid.whence))
 

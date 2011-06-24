@@ -1,5 +1,5 @@
 #!/usr/bin/env chicken-scheme
-(include "influence.scm")
+(import scheme chicken)
 (use influence)
 
 (with-problem
@@ -44,5 +44,5 @@
 
    (display-problem/dot
     (solve! (connectionist
-             (make-animation-processor "oj.gif")
+             (make-animation-processor "oj.gif" "OJ")
              (make-time-series-processor "oj-series.png"))))))

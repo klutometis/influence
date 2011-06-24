@@ -6,7 +6,7 @@
 
 (define initial-activation (make-parameter (default-activation)))
 
-(define (display-problem/dot problem)
+(define (display-problem/dot problem title)
   (define (activation->saturation activation)
     (- 255 (inexact->exact (floor (* (/ activation (if (positive? activation)
                                                        (maximum-activation)
@@ -14,7 +14,7 @@
                                      255)))))
   
   (let ((document "digraph G {
-                     graph [size=\"12!\", ratio=0.618033989];
+                     graph [size=\"12!\", ratio=0.618033989, label=\"~a\"];
                      node [style=filled]; edge [dir=none];
                      ~a
                      ~a
@@ -80,6 +80,7 @@
                       (eq? b-whence a-whither))))))))
       (format #t
               document
+              title
               (string-join propositions)
               (string-join constraints)))))
 
@@ -96,7 +97,7 @@
 
 (defstruct processor process post-process)
 
-(define (make-animation-processor animation)
+(define (make-animation-processor animation title)
   (let ((temp-dir (create-temporary-directory))
         (temp-digits (cardinality (maximum-iterations))))
     (let ((output-template
@@ -114,7 +115,7 @@
            (close-input-port in)
            (with-output-to-port
                out
-             (lambda () (display-problem/dot problem)))
+             (lambda () (display-problem/dot problem title)))
            (close-output-port out)))
        post-process:
        (lambda (problem)

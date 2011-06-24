@@ -1,4 +1,12 @@
 # -*- org -*-
+* TODO stability
+  need to tame the stochastic variance of subsequent solutions.
+* TODO combinadics
+  - http://www.markmfredrickson.com/thoughts/2010-08-06-combinadics-in-r.html
+  - http://stats.stackexchange.com/questions/1286/how-can-i-obtain-some-of-all-possible-combinations-in-r
+  - http://compprog.wordpress.com/2007/10/17/generating-combinations-1/
+  - https://stat.ethz.ch/pipermail/r-help/2006-October/115012.html
+  - http://www.omegahat.org/Combinations/
 * TODO spreading activation doesn't obey conservation of energy
 * TODO evidence is bizarre: conditioning variables?
 * TODO solutions are stochastic

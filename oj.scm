@@ -44,5 +44,6 @@
 
    (display-problem/dot
     (solve! (connectionist
-             (make-animation-processor "oj.gif" "OJ")
-             (make-time-series-processor "oj-series.png"))))))
+             (make-animation-processor "oj.gif" "Animated OJ")
+             (make-time-series-processor "oj-series.png")))
+    "OJ")))
